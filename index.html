@@ -37,10 +37,21 @@ textarea{resize:vertical;min-height:70px}
 .addr .full{grid-column:1/-1}
 .sm{font-size:13px;color:var(--muted)}
 .inl{display:inline-block;width:70px}
+.r3.cls{grid-template-columns:1.7fr 1fr .9fr}
+.cls .cell b{display:block;margin:6px 0 2px}.cls .cell b:first-child{margin-top:0}
+.oi{display:flex;flex-wrap:wrap;gap:0 16px;align-items:center}
+.oi .ck{margin:2px 0}
+.oi input.sh{width:70px}
+.ck.kh{align-items:center}.ck.kh input.sh{width:80px}
+.vxrow{display:flex;flex-wrap:wrap;align-items:center;gap:2px 22px;margin-top:2px}
+.ck.vx{display:inline-flex;flex-wrap:nowrap;white-space:nowrap;align-items:center;margin:0}
+.ck.vx input[type=radio]{margin-top:0}
+input[type=number].inl{width:56px;display:inline-block;text-align:center}
+
 .sign{display:flex;justify-content:space-between;gap:20px;margin-top:16px;flex-wrap:wrap}
 .sign .r{text-align:center;min-width:220px}
 .hint{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin:8px 0}
-@media(max-width:640px){.r2,.r4,.r32,.r3,.grid3{grid-template-columns:1fr}.cell{border-right:0;border-bottom:1px solid var(--line)}.cell:last-child{border-bottom:0}}
+@media(max-width:640px){.r3.cls{grid-template-columns:1fr}.r2,.r4,.r32,.r3,.grid3{grid-template-columns:1fr}.cell{border-right:0;border-bottom:1px solid var(--line)}.cell:last-child{border-bottom:0}}
 @media print{body{background:#fff;color:#000}.bar,.hint{display:none}:root{--paper:#fff;--ink:#000;--line:#000;--field:transparent}input,textarea{border-bottom:1px dotted #000}.wrap{padding:0}}
 .btns{display:flex;gap:6px;flex-wrap:wrap}
 .msg{display:none;padding:8px 12px;margin-bottom:8px;background:var(--field);border-left:4px solid var(--accent);font:13px system-ui,sans-serif}
@@ -50,6 +61,28 @@ textarea{resize:vertical;min-height:70px}
 table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
 tr.on{background:var(--field)}td.a{white-space:nowrap}.list button{padding:4px 10px;font-size:12px}
 @media print{.list,.msg{display:none}}
+/* ---- In gọn trong 2 trang A4 ---- */
+@page{size:A4;margin:10mm 12mm}
+@media print{
+html,body{font-size:12px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+:root{padding-top:0;padding-bottom:0}
+.wrap{max-width:none;padding:0}
+h1{font-size:15px;margin:0 0 6px}
+.cell{padding:3px 6px}
+.grid3{padding:3px 6px;gap:0 6px}
+label.l{margin-bottom:1px}
+.ck{margin:1px 0;gap:4px}
+.ck input{margin-top:2px}
+input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],textarea{padding:1px 4px;font-size:11.5px}
+textarea{min-height:0;height:80px;resize:none}
+.mc input{padding:1px 0;width:22px}
+.addr{gap:2px 8px}
+.sm{font-size:10.5px}
+.sign{margin-top:8px;gap:12px}
+.sign .r{min-width:200px}
+.row,.sign{break-inside:avoid;page-break-inside:avoid}
+p.sm{margin:4px 0 0}
+}
 </style>
 </head>
 <body>
@@ -102,33 +135,34 @@ tr.on{background:var(--field)}td.a{white-space:nowrap}.list button{padding:4px 1
 <div class="row"><div class="cell sec n">Bệnh phải báo cáo trong vòng <b>48 giờ</b> sau khi có chẩn đoán</div></div>
 <div class="row"><div class="grid3" id="b48"></div></div>
 
-<div class="row"><div class="cell"><b>Tình trạng tiêm chủng:</b> Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc<br>
- <label class="ck" style="display:inline-flex"><input type="radio" name="tiem" value="Có">Có → Số lần tiêm, uống <input type="number" min="0" name="solan" class="inl"></label>
- &nbsp;<label class="ck" style="display:inline-flex"><input type="radio" name="tiem" value="Không">Không</label>
- &nbsp;<label class="ck" style="display:inline-flex"><input type="radio" name="tiem" value="Không rõ">Không rõ</label></div></div>
+<div class="row"><div class="cell"><b>Tình trạng tiêm chủng:</b> Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc
+ <div class="vxrow">
+ <label class="ck vx"><input type="radio" name="tiem" value="Có">Có → Số lần tiêm, uống <input type="number" min="0" name="solan" class="inl"></label>
+ <label class="ck vx"><input type="radio" name="tiem" value="Không">Không</label>
+ <label class="ck vx"><input type="radio" name="tiem" value="Không rõ">Không rõ</label></div></div></div>
 
-<div class="row r3">
+<div class="row r3 cls">
  <div class="cell">
   <b>Phân loại chẩn đoán:</b>
-  <label class="ck"><input type="radio" name="phanloai" value="Lâm sàng">Lâm sàng</label>
-  <label class="ck"><input type="radio" name="phanloai" value="Xác định phòng xét nghiệm">Xác định phòng xét nghiệm</label>
-  <div style="margin-top:8px"><b>Lấy mẫu xét nghiệm chẩn đoán:</b>
-  <label class="ck"><input type="radio" name="laymau" value="Có">Có</label>
+  <div class="oi"><label class="ck"><input type="radio" name="phanloai" value="Lâm sàng">Lâm sàng</label>
+  <label class="ck"><input type="radio" name="phanloai" value="Xác định phòng xét nghiệm">Xác định phòng xét nghiệm</label></div>
+  <b>Lấy mẫu xét nghiệm chẩn đoán:</b>
+  <div class="oi"><label class="ck"><input type="radio" name="laymau" value="Có">Có</label>
   <label class="ck"><input type="radio" name="laymau" value="Không">Không</label></div>
-  <div style="margin-top:8px"><b>Loại xét nghiệm:</b>
-  <label class="ck"><input type="checkbox" name="xn" value="Test nhanh">Test nhanh</label>
+  <b>Loại xét nghiệm:</b>
+  <div class="oi"><label class="ck"><input type="checkbox" name="xn" value="Test nhanh">Test nhanh</label>
   <label class="ck"><input type="checkbox" name="xn" value="MAC ELISA">MAC ELISA</label>
   <label class="ck"><input type="checkbox" name="xn" value="PCR">PCR</label>
-  <label class="ck"><input type="checkbox" name="xn" value="Khác">Khác:</label><input type="text" name="xnkhac"></div>
-  <div style="margin-top:8px"><b>Kết quả xét nghiệm chẩn đoán:</b>
-  <label class="ck"><input type="radio" name="ketqua" value="Dương tính">Dương tính</label>
+  <label class="ck"><input type="checkbox" name="xn" value="Khác">Khác:</label><input type="text" name="xnkhac" class="sh"></div>
+  <b>Kết quả xét nghiệm chẩn đoán:</b>
+  <div class="oi"><label class="ck"><input type="radio" name="ketqua" value="Dương tính">Dương tính</label>
   <label class="ck"><input type="radio" name="ketqua" value="Âm tính">Âm tính</label>
   <label class="ck"><input type="radio" name="ketqua" value="Chưa có kết quả">Chưa có kết quả</label></div>
  </div>
  <div class="cell">
   <label class="l">Ngày khởi phát:</label><input type="date" name="ngaykp">
-  <label class="l" style="margin-top:14px">Ngày nhập viện:</label><input type="date" name="ngaynv">
-  <label class="l" style="margin-top:14px">Ngày ra viện/chuyển viện/tử vong:</label><input type="date" name="ngayrv">
+  <label class="l" style="margin-top:8px">Ngày nhập viện:</label><input type="date" name="ngaynv">
+  <label class="l" style="margin-top:8px">Ngày ra viện/chuyển viện/tử vong:</label><input type="date" name="ngayrv">
  </div>
  <div class="cell">
   <b>Tình trạng:</b>
@@ -137,7 +171,7 @@ tr.on{background:var(--field)}td.a{white-space:nowrap}.list button{padding:4px 1
   <label class="ck"><input type="radio" name="tinhtrang" value="Ra viện">Ra viện</label>
   <label class="ck"><input type="radio" name="tinhtrang" value="Chuyển viện">Chuyển viện</label>
   <label class="ck"><input type="radio" name="tinhtrang" value="Tử vong">Tử vong</label>
-  <label class="ck"><input type="radio" name="tinhtrang" value="Khác">Khác</label><input type="text" name="ttkhac">
+  <label class="ck kh"><input type="radio" name="tinhtrang" value="Khác">Khác<input type="text" name="ttkhac" class="sh"></label>
  </div>
 </div>
 
