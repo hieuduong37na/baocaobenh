@@ -54,6 +54,9 @@ input[type=number].inl{width:56px;display:inline-block;text-align:center}
 .hint{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin:8px 0}
 @media(max-width:640px){.r3.cls{grid-template-columns:1fr}.r2,.r4,.r32,.r3,.grid3{grid-template-columns:1fr}.cell{border-right:0;border-bottom:1px solid var(--line)}.cell:last-child{border-bottom:0}}
 @media print{body{background:#fff;color:#000}.bar,.hint{display:none}:root{--paper:#fff;--ink:#000;--line:#000;--field:transparent}input,textarea{border-bottom:1px dotted #000}.wrap{padding:0}}
+.stick{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--bg);margin:0 -12px 6px;padding:8px 12px 2px;border-bottom:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.stick .bar{margin-bottom:6px}.stick .msg{margin-bottom:6px}
+@media print{.stick{display:none}}
 .btns{display:flex;gap:6px;flex-wrap:wrap}
 .msg{display:none;padding:8px 12px;margin-bottom:8px;background:var(--field);border-left:4px solid var(--accent);font:13px system-ui,sans-serif}
 .msg.show{display:block}.msg.warn{border-left-color:#d97706}
@@ -88,10 +91,12 @@ p.sm{margin:4px 0 0}
 </head>
 <body>
 <div class="wrap">
+<div class="stick">
 <div class="bar"><b>Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
 <span class="btns"><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="newForm()">Hồ sơ mới</button><button onclick="saveRec()">Lưu hồ sơ</button><button class="alt" onclick="window.print()">In</button></span></div>
 <input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
 <div id="msg" class="msg" role="status"></div>
+</div>
 <h1>BÁO CÁO TRƯỜNG HỢP BỆNH</h1>
 
 <form id="f" class="tbl" onsubmit="return false">
