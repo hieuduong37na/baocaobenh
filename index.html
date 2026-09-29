@@ -120,8 +120,7 @@ p.sm{margin:4px 0 0}
    <div><span class="sm">Đường/phố</span><input type="text" name="duong"></div>
    <div class="full"><span class="sm">Tổ/xóm/ấp/bản</span><input type="text" name="to"></div>
    <div><span class="sm">Phường/xã/thị trấn</span><input type="text" name="phuong"></div>
-   <div><span class="sm">Quận/huyện/thị xã/TP</span><input type="text" name="quan"></div>
-   <div class="full"><span class="sm">Tỉnh/thành phố</span><input type="text" name="tinh"></div>
+   <div><span class="sm">Tỉnh/thành phố</span><input type="text" name="tinh"></div>
   </div></div>
  <div class="cell"><label class="l">Điện thoại liên lạc:</label><input type="tel" name="sdt"></div>
 </div>
@@ -210,7 +209,7 @@ for(let i=0;i<10;i++){const e=document.createElement('input');e.type='text';e.ma
  e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};ma.appendChild(e);}
 const $=id=>document.getElementById(id),F=$('f'),KEY='bctb_records_v1';
 const ALL=[...L24.map((n,i)=>(i+1)+'. '+n),...L48.map((n,i)=>(21+i)+'. '+n)];
-const COLS=[['Họ và tên bệnh nhân','hoten'],['Mã bệnh nhân (10 số)','ma'],['Ngày sinh (dd/mm/yyyy)','ngaysinh','d'],['Giới tính (Nam/Nữ)','gioitinh'],['Dân tộc','dantoc'],['Nghề nghiệp','nghe'],['Số nhà','sonha'],['Đường/phố','duong'],['Tổ/xóm/ấp/bản','to'],['Phường/xã/thị trấn','phuong'],['Quận/huyện/thị xã/TP','quan'],['Tỉnh/thành phố','tinh'],['Điện thoại','sdt'],['Nơi làm việc/học tập','noilam'],['Bệnh (số thứ tự, cách nhau dấu ;)','benh','l'],['Tiêm chủng (Có/Không/Không rõ)','tiem'],['Số lần tiêm','solan'],['Phân loại chẩn đoán (Lâm sàng/Xác định phòng xét nghiệm)','phanloai'],['Lấy mẫu xét nghiệm (Có/Không)','laymau'],['Loại xét nghiệm (Test nhanh; MAC ELISA; PCR; ...)','xn','l'],['Kết quả xét nghiệm (Dương tính/Âm tính/Chưa có kết quả)','ketqua'],['Ngày khởi phát','ngaykp','d'],['Ngày nhập viện','ngaynv','d'],['Ngày ra viện/chuyển viện/tử vong','ngayrv','d'],['Tình trạng (Điều trị ngoại trú/Điều trị nội trú/Ra viện/Chuyển viện/Tử vong/khác)','tinhtrang'],['Tiền sử dịch tễ','dichte'],['Người báo cáo','nguoibc'],['ĐT người báo cáo','sdtbc'],['Đơn vị công tác','donvi'],['Email','email']];
+const COLS=[['Họ và tên bệnh nhân','hoten'],['Mã bệnh nhân (10 số)','ma'],['Ngày sinh (dd/mm/yyyy)','ngaysinh','d'],['Giới tính (Nam/Nữ)','gioitinh'],['Dân tộc','dantoc'],['Nghề nghiệp','nghe'],['Số nhà','sonha'],['Đường/phố','duong'],['Tổ/xóm/ấp/bản','to'],['Phường/xã/thị trấn','phuong'],['Tỉnh/thành phố','tinh'],['Điện thoại','sdt'],['Nơi làm việc/học tập','noilam'],['Bệnh (số thứ tự, cách nhau dấu ;)','benh','l'],['Tiêm chủng (Có/Không/Không rõ)','tiem'],['Số lần tiêm','solan'],['Phân loại chẩn đoán (Lâm sàng/Xác định phòng xét nghiệm)','phanloai'],['Lấy mẫu xét nghiệm (Có/Không)','laymau'],['Loại xét nghiệm (Test nhanh; MAC ELISA; PCR; ...)','xn','l'],['Kết quả xét nghiệm (Dương tính/Âm tính/Chưa có kết quả)','ketqua'],['Ngày khởi phát','ngaykp','d'],['Ngày nhập viện','ngaynv','d'],['Ngày ra viện/chuyển viện/tử vong','ngayrv','d'],['Tình trạng (Điều trị ngoại trú/Điều trị nội trú/Ra viện/Chuyển viện/Tử vong/khác)','tinhtrang'],['Tiền sử dịch tễ','dichte'],['Người báo cáo','nguoibc'],['ĐT người báo cáo','sdtbc'],['Đơn vị công tác','donvi'],['Email','email']];
 const TXT=['ma','sdt','sdtbc'].map(k=>COLS.findIndex(c=>c[1]===k));
 let recs=[],cur=null;
 try{recs=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){recs=[]}
@@ -242,7 +241,7 @@ function toISO(v){if(v===''||v==null)return'';let y,m,d,a;
  else{const t=T(v);if(a=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/)){d=+a[1];m=+a[2];y=+a[3]}else if(a=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)){y=+a[1];m=+a[2];d=+a[3]}else return null}
  return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
 function fromRow(r,w){const g=k=>r[COLS.findIndex(c=>c[1]===k)],o={};
- ['hoten','nghe','sonha','duong','to','phuong','quan','tinh','sdt','noilam','dichte','nguoibc','sdtbc','donvi','email','solan'].forEach(k=>o[k]=T(g(k)));
+ ['hoten','nghe','sonha','duong','to','phuong','tinh','sdt','noilam','dichte','nguoibc','sdtbc','donvi','email','solan'].forEach(k=>o[k]=T(g(k)));
  o.hoten=o.hoten.toUpperCase();o.ma=T(g('ma')).replace(/\D/g,'').slice(0,10);
  ['ngaysinh','ngaykp','ngaynv','ngayrv'].forEach(k=>{const t=toISO(g(k));if(t===null){w.push(k);o[k]=''}else o[k]=t});
  o.gioitinh=pick(g('gioitinh'),['Nam','Nữ']);
@@ -285,7 +284,7 @@ async function saveBook(wb,name){
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),4000);msg('Đã tải file '+name+' (xem trong thư mục Tải xuống).')}
  catch(e){msg('Không tải được file: '+(e.message||e),1)}}
-function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','Quận 5','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
+function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
 function expXlsx(){if(!recs.length){msg('Chưa có hồ sơ nào để lưu.',1);return}
  const n=new Date(),s=n.getFullYear()+String(n.getMonth()+1).padStart(2,'0')+String(n.getDate()).padStart(2,'0');
  saveBook(book([COLS.map(c=>c[0]),...recs.map(toRow)]),'bao-cao-benh-'+s+'.xlsx')}
