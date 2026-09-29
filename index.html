@@ -28,6 +28,7 @@ label.l{display:block;margin-bottom:4px}
 input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],textarea{width:100%;font:inherit;color:var(--ink);background:var(--field);border:0;border-bottom:1px dotted var(--line);padding:4px 6px;border-radius:2px}
 input:focus,textarea:focus{outline:2px solid var(--accent)}
 textarea{resize:vertical;min-height:70px}
+textarea.ag{resize:none;overflow:hidden;min-height:0;display:block;line-height:1.35}
 .ck{display:flex;gap:6px;align-items:flex-start;margin:3px 0;cursor:pointer}
 .ck input{margin-top:4px;flex:none}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 8px;padding:8px 10px}
@@ -74,7 +75,7 @@ label.l{margin-bottom:1px}
 .ck{margin:1px 0;gap:4px}
 .ck input{margin-top:2px}
 input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],textarea{padding:1px 4px;font-size:11.5px}
-textarea{min-height:0;height:80px;resize:none}
+textarea{min-height:0;resize:none}
 .mc input{padding:1px 0;width:22px}
 .addr{gap:2px 8px}
 .sm{font-size:10.5px}
@@ -97,7 +98,7 @@ p.sm{margin:4px 0 0}
 <div class="row"><div class="cell sec">Thông tin bệnh nhân</div></div>
 
 <div class="row r2">
- <div class="cell"><label class="l">Họ và tên bệnh nhân (CHỮ IN):</label><input type="text" name="hoten" style="text-transform:uppercase"></div>
+ <div class="cell"><label class="l">Họ và tên bệnh nhân (CHỮ IN):</label><textarea name="hoten" rows="1" class="ag" style="text-transform:uppercase"></textarea></div>
  <div class="cell"><label class="l">Mã bệnh nhân:</label><div class="mc" id="ma"></div></div>
 </div>
 
@@ -110,22 +111,22 @@ p.sm{margin:4px 0 0}
   <label class="ck"><input type="radio" name="dantoc" value="Kinh">Kinh</label>
   <label class="ck"><input type="radio" name="dantoc" value="Khác">Khác:</label>
   <input type="text" name="dantockhac"></div>
- <div class="cell"><label class="l">Nghề nghiệp:</label><input type="text" name="nghe"></div>
+ <div class="cell"><label class="l">Nghề nghiệp:</label><textarea name="nghe" rows="1" class="ag"></textarea></div>
 </div>
 
 <div class="row r32">
  <div class="cell"><label class="l">Nơi ở hiện nay:</label>
   <div class="addr">
-   <div><span class="sm">Số nhà</span><input type="text" name="sonha"></div>
-   <div><span class="sm">Đường/phố</span><input type="text" name="duong"></div>
-   <div class="full"><span class="sm">Tổ/xóm/ấp/bản</span><input type="text" name="to"></div>
-   <div><span class="sm">Phường/xã/thị trấn</span><input type="text" name="phuong"></div>
-   <div><span class="sm">Tỉnh/thành phố</span><input type="text" name="tinh"></div>
+   <div><span class="sm">Số nhà</span><textarea name="sonha" rows="1" class="ag"></textarea></div>
+   <div><span class="sm">Đường/phố</span><textarea name="duong" rows="1" class="ag"></textarea></div>
+   <div class="full"><span class="sm">Tổ/xóm/ấp/bản</span><textarea name="to" rows="1" class="ag"></textarea></div>
+   <div><span class="sm">Phường/xã/thị trấn</span><textarea name="phuong" rows="1" class="ag"></textarea></div>
+   <div><span class="sm">Tỉnh/thành phố</span><textarea name="tinh" rows="1" class="ag"></textarea></div>
   </div></div>
  <div class="cell"><label class="l">Điện thoại liên lạc:</label><input type="tel" name="sdt"></div>
 </div>
 
-<div class="row"><div class="cell"><label class="l">Nơi làm việc/học tập:</label><input type="text" name="noilam"></div></div>
+<div class="row"><div class="cell"><label class="l">Nơi làm việc/học tập:</label><textarea name="noilam" rows="1" class="ag"></textarea></div></div>
 
 <div class="row"><div class="cell"><div class="sec">Chẩn đoán bệnh (lâm sàng hoặc xác định phòng thí nghiệm)</div>
  <div class="sec" style="margin-top:8px">Bệnh phải báo cáo ngay sau khi có chẩn đoán, không muộn quá 24 giờ</div></div></div>
@@ -175,17 +176,17 @@ p.sm{margin:4px 0 0}
 </div>
 
 <div class="row"><div class="cell"><b>TIỀN SỬ DỊCH TỄ</b> <i>(thời gian đi lại trước khi mắc bệnh, tiếp xúc người bệnh/trường hợp nghi ngờ, tiếp xúc động vật/gia cầm, nơi tiếp xúc)</i>
- <textarea name="dichte" rows="4" style="margin-top:6px"></textarea></div></div>
+ <textarea name="dichte" rows="1" class="ag" data-multi="1" style="margin-top:6px"></textarea></div></div>
 
 <div class="row"><div class="cell sec">Thông tin người báo cáo</div></div>
-<div class="row r32"><div class="cell"><label class="l">Tên người báo cáo:</label><input type="text" name="nguoibc"></div>
+<div class="row r32"><div class="cell"><label class="l">Tên người báo cáo:</label><textarea name="nguoibc" rows="1" class="ag"></textarea></div>
  <div class="cell"><label class="l">Điện thoại:</label><input type="tel" name="sdtbc"></div></div>
-<div class="row r32"><div class="cell"><label class="l">Đơn vị công tác:</label><input type="text" name="donvi"></div>
+<div class="row r32"><div class="cell"><label class="l">Đơn vị công tác:</label><textarea name="donvi" rows="1" class="ag"></textarea></div>
  <div class="cell"><label class="l">Email:</label><input type="email" name="email"></div></div>
 </form>
 
 <div class="sign">
- <div><i>Nơi nhận:</i><br><input type="text" form="f" name="noinhan" style="min-width:200px"></div>
+ <div><i>Nơi nhận:</i><br><textarea form="f" name="noinhan" rows="1" class="ag" style="min-width:200px"></textarea></div>
  <div class="r">Ngày <input class="inl" style="width:50px" form="f" name="d"> tháng <input class="inl" style="width:50px" form="f" name="m"> năm <input class="inl" style="width:60px" form="f" name="y"><br><b>THỦ TRƯỞNG ĐƠN VỊ</b><br><br><br><br></div>
 </div>
 <p class="sm"><b>Nguồn</b>: Thông tư 54/2015/TT-BYT</p>
@@ -207,6 +208,13 @@ const ma=document.getElementById('ma');
 for(let i=0;i<10;i++){const e=document.createElement('input');e.type='text';e.maxLength=1;e.inputMode='numeric';e.name='ma'+i;e.setAttribute('form','f');
  e.oninput=()=>{if(e.value&&e.nextElementSibling)e.nextElementSibling.focus()};
  e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};ma.appendChild(e);}
+function grow(e){e.style.height='auto';e.style.height=e.scrollHeight+'px'}
+function growAll(){document.querySelectorAll('textarea.ag').forEach(grow)}
+document.querySelectorAll('textarea.ag').forEach(e=>{
+ e.addEventListener('input',()=>{if(!e.dataset.multi&&/\n/.test(e.value))e.value=e.value.replace(/\s*\n\s*/g,' ');grow(e)});
+ if(!e.dataset.multi)e.addEventListener('keydown',ev=>{if(ev.key==='Enter')ev.preventDefault()})});
+addEventListener('resize',growAll);addEventListener('beforeprint',growAll);addEventListener('afterprint',growAll);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(growAll);
 const $=id=>document.getElementById(id),F=$('f'),KEY='bctb_records_v1';
 const ALL=[...L24.map((n,i)=>(i+1)+'. '+n),...L48.map((n,i)=>(21+i)+'. '+n)];
 const COLS=[['Họ và tên bệnh nhân','hoten'],['Mã bệnh nhân (10 số)','ma'],['Ngày sinh (dd/mm/yyyy)','ngaysinh','d'],['Giới tính (Nam/Nữ)','gioitinh'],['Dân tộc','dantoc'],['Nghề nghiệp','nghe'],['Số nhà','sonha'],['Đường/phố','duong'],['Tổ/xóm/ấp/bản','to'],['Phường/xã/thị trấn','phuong'],['Tỉnh/thành phố','tinh'],['Điện thoại','sdt'],['Nơi làm việc/học tập','noilam'],['Bệnh (số thứ tự, cách nhau dấu ;)','benh','l'],['Tiêm chủng (Có/Không/Không rõ)','tiem'],['Số lần tiêm','solan'],['Phân loại chẩn đoán (Lâm sàng/Xác định phòng xét nghiệm)','phanloai'],['Lấy mẫu xét nghiệm (Có/Không)','laymau'],['Loại xét nghiệm (Test nhanh; MAC ELISA; PCR; ...)','xn','l'],['Kết quả xét nghiệm (Dương tính/Âm tính/Chưa có kết quả)','ketqua'],['Ngày khởi phát','ngaykp','d'],['Ngày nhập viện','ngaynv','d'],['Ngày ra viện/chuyển viện/tử vong','ngayrv','d'],['Tình trạng (Điều trị ngoại trú/Điều trị nội trú/Ra viện/Chuyển viện/Tử vong/khác)','tinhtrang'],['Tiền sử dịch tễ','dichte'],['Người báo cáo','nguoibc'],['ĐT người báo cáo','sdtbc'],['Đơn vị công tác','donvi'],['Email','email']];
@@ -220,14 +228,14 @@ function msg(t,w){const m=$('msg');m.textContent=t;m.className='msg show'+(w?' w
 function getData(){const o={};[...F.elements].forEach(e=>{if(!e.name||/^ma\d$/.test(e.name))return;
  if(e.type==='checkbox'){if(e.checked)(o[e.name]=o[e.name]||[]).push(e.value)}else if(e.type==='radio'){if(e.checked)o[e.name]=e.value}else o[e.name]=e.value});
  o.ma=[...Array(10).keys()].map(i=>F.elements['ma'+i].value).join('');return o}
-function setData(o){F.reset();[...F.elements].forEach(e=>{const n=e.name;if(!n)return;
+function setData(o){F.reset();setTimeout(growAll,0);[...F.elements].forEach(e=>{const n=e.name;if(!n)return;
  if(/^ma\d$/.test(n))e.value=(o.ma||'')[+n[2]]||'';
  else if(e.type==='checkbox')e.checked=(o[n]||[]).includes(e.value);
  else if(e.type==='radio')e.checked=o[n]===e.value;
  else e.value=o[n]||''})}
 function saveRec(){const d=getData();if(!d.hoten.trim()){msg('Vui lòng nhập họ tên bệnh nhân.',1);return}
  d.id=cur||uid();const i=recs.findIndex(r=>r.id===d.id);if(i>=0)recs[i]=d;else recs.push(d);cur=d.id;persist();render();msg(i>=0?'Đã cập nhật hồ sơ.':'Đã lưu hồ sơ. Bấm "Lưu file Excel" để tải file về máy.')}
-function newForm(){F.reset();cur=null;render();scrollTo(0,0)}
+function newForm(){F.reset();growAll();cur=null;render();scrollTo(0,0)}
 function openRec(id){const r=recs.find(x=>x.id===id);if(!r)return;setData(r);cur=id;render();scrollTo(0,0)}
 function two(b,fn){if(b.dataset.s!=='1'){const t=b.textContent;b.dataset.s='1';b.textContent='Chắc chắn?';setTimeout(()=>{b.dataset.s='';b.textContent=t},3000);return}fn()}
 function delRec(id,b){two(b,()=>{recs=recs.filter(r=>r.id!==id);if(cur===id)cur=null;persist();render()})}
@@ -296,7 +304,7 @@ $('imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)re
   persist();render();
   msg(`Đã nhập ${n} hồ sơ`+(skip?`, bỏ qua ${skip} dòng thiếu họ tên`:'')+(w.length?`, ${w.length} ô không hợp lệ đã để trống`:'')+'. Bấm "Lưu file Excel" để lưu lại.',skip||w.length)}
  catch(err){msg('Không đọc được file Excel này.',1)}};
-render();
+render();growAll();
 </script>
 </body>
 </html>
