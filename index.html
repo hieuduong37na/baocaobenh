@@ -271,10 +271,20 @@ function book(rows){const ws=XLSX.utils.aoa_to_sheet(rows);
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dữ liệu');XLSX.utils.book_append_sheet(wb,wg,'Hướng dẫn');return wb}
 async function saveBook(wb,name){
  if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel, hãy kiểm tra mạng và tải lại trang.',1);return}
- const dl=window.claude?await claude.use('downloads'):null;
- if(!dl){msg('Chế độ xem này không hỗ trợ tải file. Hãy mở trang trong claude.ai.',1);return}
- try{await dl.save({filename:name,data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});msg('Đã lưu file '+name)}
- catch(e){msg(e.code==='declined'?'Đã hủy lưu file.':'Không lưu được file ('+(e.code||e.message)+').',1)}}
+ let dl=null;
+ try{dl=window.claude?await claude.use('downloads'):null}catch(e){dl=null}
+ if(dl){
+  try{await dl.save({filename:name,data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});msg('Đã lưu file '+name)}
+  catch(e){msg(e.code==='declined'?'Đã hủy lưu file.':'Không lưu được file ('+(e.code||e.message)+').',1)}
+  return}
+ /* Mở trực tiếp trên máy/trình duyệt thường: tải file bằng Blob */
+ try{
+  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);msg('Đã tải file '+name+' (xem trong thư mục Tải xuống).')}
+ catch(e){msg('Không tải được file: '+(e.message||e),1)}}
 function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','Quận 5','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
 function expXlsx(){if(!recs.length){msg('Chưa có hồ sơ nào để lưu.',1);return}
  const n=new Date(),s=n.getFullYear()+String(n.getMonth()+1).padStart(2,'0')+String(n.getDate()).padStart(2,'0');
