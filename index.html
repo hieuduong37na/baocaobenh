@@ -42,12 +42,22 @@ textarea{resize:vertical;min-height:70px}
 .hint{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);margin:8px 0}
 @media(max-width:640px){.r2,.r4,.r32,.r3,.grid3{grid-template-columns:1fr}.cell{border-right:0;border-bottom:1px solid var(--line)}.cell:last-child{border-bottom:0}}
 @media print{body{background:#fff;color:#000}.bar,.hint{display:none}:root{--paper:#fff;--ink:#000;--line:#000;--field:transparent}input,textarea{border-bottom:1px dotted #000}.wrap{padding:0}}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.msg{display:none;padding:8px 12px;margin-bottom:8px;background:var(--field);border-left:4px solid var(--accent);font:13px system-ui,sans-serif}
+.msg.show{display:block}.msg.warn{border-left-color:#d97706}
+.list{margin-top:18px;background:var(--paper);border:1px solid var(--line);padding:8px 10px;font:13px system-ui,sans-serif}
+.list .bar{margin:0 0 6px}.scroll{overflow:auto;max-height:340px}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+tr.on{background:var(--field)}td.a{white-space:nowrap}.list button{padding:4px 10px;font-size:12px}
+@media print{.list,.msg{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="bar"><b>Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
-<span><button class="alt" onclick="resetForm()">Xóa trắng</button> <button onclick="window.print()">In / Lưu PDF</button></span></div>
+<span class="btns"><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="newForm()">Hồ sơ mới</button><button onclick="saveRec()">Lưu hồ sơ</button><button class="alt" onclick="window.print()">In</button></span></div>
+<input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
+<div id="msg" class="msg" role="status"></div>
 <h1>BÁO CÁO TRƯỜNG HỢP BỆNH</h1>
 
 <form id="f" class="tbl" onsubmit="return false">
@@ -146,8 +156,10 @@ textarea{resize:vertical;min-height:70px}
  <div class="r">Ngày <input class="inl" style="width:50px" form="f" name="d"> tháng <input class="inl" style="width:50px" form="f" name="m"> năm <input class="inl" style="width:60px" form="f" name="y"><br><b>THỦ TRƯỞNG ĐƠN VỊ</b><br><br><br><br></div>
 </div>
 <p class="sm"><b>Nguồn</b>: Thông tư 54/2015/TT-BYT</p>
-<p class="hint">Dữ liệu chỉ nằm trên trình duyệt của bạn. Bấm “In / Lưu PDF” để xuất biểu mẫu đã điền.</p>
+<section class="list"><div class="bar"><b>Danh sách hồ sơ (<span id="cnt">0</span>)</b><span class="btns"><button onclick="expXlsx()">💾 Lưu file Excel</button><button class="alt" onclick="clearAll(this)">Xóa tất cả</button></span></div><div class="scroll"><table id="tb"></table></div></section>
+<p class="hint">Hồ sơ được giữ trong trình duyệt này; bấm “Lưu file Excel” để tải file về máy và có thể nhập lại sau.</p>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const L24=["Bại liệt","Bạch hầu","Bệnh do liên cầu lợn","Cúm A(H5N1)","Cúm A(H7N9)","Dịch hạch","Ê-bô-la (Ebolla)","Lát-sa (Lassa)","Mác-bớt (Marburg)","Rubella (Rubeon)","Sốt Tây sông Nin","Sốt vàng","Sốt xuất huyết Dengue","Sởi","Tả","Tay - chân - miệng","Than","Viêm đường hô hấp Trung đông (MERS-CoV)","Viêm màng não do não mô cầu","Bệnh truyền nhiễm nguy hiểm mới nổi và bệnh mới phát sinh chưa rõ nguyên nhân"];
 const L48=["Dại","Ho gà","Liệt mềm cấp nghi bại liệt","Lao phổi","Sốt rét","Thương hàn","Uốn ván sơ sinh","Uốn ván khác","Viêm gan vi rút A","Viêm gan vi rút B","Viêm gan vi rút C","Viêm não Nhật Bản","Viêm não vi rút khác","Xoắn khuẩn vàng da (Leptospira)"];
@@ -162,7 +174,86 @@ const ma=document.getElementById('ma');
 for(let i=0;i<10;i++){const e=document.createElement('input');e.type='text';e.maxLength=1;e.inputMode='numeric';e.name='ma'+i;e.setAttribute('form','f');
  e.oninput=()=>{if(e.value&&e.nextElementSibling)e.nextElementSibling.focus()};
  e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};ma.appendChild(e);}
-function resetForm(){if(confirm('Xóa toàn bộ nội dung đã nhập?')){document.getElementById('f').reset();document.querySelectorAll('[form=f]').forEach(e=>e.value='')}}
+const $=id=>document.getElementById(id),F=$('f'),KEY='bctb_records_v1';
+const ALL=[...L24.map((n,i)=>(i+1)+'. '+n),...L48.map((n,i)=>(21+i)+'. '+n)];
+const COLS=[['Họ và tên bệnh nhân','hoten'],['Mã bệnh nhân (10 số)','ma'],['Ngày sinh (dd/mm/yyyy)','ngaysinh','d'],['Giới tính (Nam/Nữ)','gioitinh'],['Dân tộc','dantoc'],['Nghề nghiệp','nghe'],['Số nhà','sonha'],['Đường/phố','duong'],['Tổ/xóm/ấp/bản','to'],['Phường/xã/thị trấn','phuong'],['Quận/huyện/thị xã/TP','quan'],['Tỉnh/thành phố','tinh'],['Điện thoại','sdt'],['Nơi làm việc/học tập','noilam'],['Bệnh (số thứ tự, cách nhau dấu ;)','benh','l'],['Tiêm chủng (Có/Không/Không rõ)','tiem'],['Số lần tiêm','solan'],['Phân loại chẩn đoán (Lâm sàng/Xác định phòng xét nghiệm)','phanloai'],['Lấy mẫu xét nghiệm (Có/Không)','laymau'],['Loại xét nghiệm (Test nhanh; MAC ELISA; PCR; ...)','xn','l'],['Kết quả xét nghiệm (Dương tính/Âm tính/Chưa có kết quả)','ketqua'],['Ngày khởi phát','ngaykp','d'],['Ngày nhập viện','ngaynv','d'],['Ngày ra viện/chuyển viện/tử vong','ngayrv','d'],['Tình trạng (Điều trị ngoại trú/Điều trị nội trú/Ra viện/Chuyển viện/Tử vong/khác)','tinhtrang'],['Tiền sử dịch tễ','dichte'],['Người báo cáo','nguoibc'],['ĐT người báo cáo','sdtbc'],['Đơn vị công tác','donvi'],['Email','email']];
+const TXT=['ma','sdt','sdtbc'].map(k=>COLS.findIndex(c=>c[1]===k));
+let recs=[],cur=null;
+try{recs=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){recs=[]}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(recs))}catch(e){msg('Không lưu được vào trình duyệt – hãy bấm "Lưu file Excel" để giữ dữ liệu.',1)}}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const T=v=>String(v??'').trim(),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function msg(t,w){const m=$('msg');m.textContent=t;m.className='msg show'+(w?' warn':'');clearTimeout(msg.t);msg.t=setTimeout(()=>m.className='msg',9000)}
+function getData(){const o={};[...F.elements].forEach(e=>{if(!e.name||/^ma\d$/.test(e.name))return;
+ if(e.type==='checkbox'){if(e.checked)(o[e.name]=o[e.name]||[]).push(e.value)}else if(e.type==='radio'){if(e.checked)o[e.name]=e.value}else o[e.name]=e.value});
+ o.ma=[...Array(10).keys()].map(i=>F.elements['ma'+i].value).join('');return o}
+function setData(o){F.reset();[...F.elements].forEach(e=>{const n=e.name;if(!n)return;
+ if(/^ma\d$/.test(n))e.value=(o.ma||'')[+n[2]]||'';
+ else if(e.type==='checkbox')e.checked=(o[n]||[]).includes(e.value);
+ else if(e.type==='radio')e.checked=o[n]===e.value;
+ else e.value=o[n]||''})}
+function saveRec(){const d=getData();if(!d.hoten.trim()){msg('Vui lòng nhập họ tên bệnh nhân.',1);return}
+ d.id=cur||uid();const i=recs.findIndex(r=>r.id===d.id);if(i>=0)recs[i]=d;else recs.push(d);cur=d.id;persist();render();msg(i>=0?'Đã cập nhật hồ sơ.':'Đã lưu hồ sơ. Bấm "Lưu file Excel" để tải file về máy.')}
+function newForm(){F.reset();cur=null;render();scrollTo(0,0)}
+function openRec(id){const r=recs.find(x=>x.id===id);if(!r)return;setData(r);cur=id;render();scrollTo(0,0)}
+function two(b,fn){if(b.dataset.s!=='1'){const t=b.textContent;b.dataset.s='1';b.textContent='Chắc chắn?';setTimeout(()=>{b.dataset.s='';b.textContent=t},3000);return}fn()}
+function delRec(id,b){two(b,()=>{recs=recs.filter(r=>r.id!==id);if(cur===id)cur=null;persist();render()})}
+function clearAll(b){if(recs.length)two(b,()=>{recs=[];cur=null;persist();render();b.dataset.s='';b.textContent='Xóa tất cả'})}
+function render(){$('cnt').textContent=recs.length;$('tb').innerHTML='<tr><th>#</th><th>Họ tên</th><th>Mã BN</th><th>Bệnh</th><th></th></tr>'+(recs.length?recs.map((r,i)=>`<tr${r.id===cur?' class="on"':''}><td>${i+1}</td><td>${esc(r.hoten)}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td class="a"><button class="alt" onclick="openRec('${r.id}')">Mở</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`).join(''):'<tr><td colspan="5">Chưa có hồ sơ. Nhập tay rồi bấm "Lưu hồ sơ", hoặc nhập từ file Excel.</td></tr>')}
+/* ---- Excel ---- */
+const split=v=>T(v).split(/[;\n]+/).flatMap(t=>/^[\d\s,]+$/.test(t)?t.split(','):[t]).map(T).filter(Boolean);
+const pick=(v,o)=>{const t=T(v).toLowerCase();return o.find(x=>x.toLowerCase()===t)||''};
+function toISO(v){if(v===''||v==null)return'';let y,m,d,a;
+ if(typeof v==='number'){const p=XLSX.SSF.parse_date_code(v);if(!p)return null;y=p.y;m=p.m;d=p.d}
+ else{const t=T(v);if(a=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/)){d=+a[1];m=+a[2];y=+a[3]}else if(a=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)){y=+a[1];m=+a[2];d=+a[3]}else return null}
+ return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
+function fromRow(r,w){const g=k=>r[COLS.findIndex(c=>c[1]===k)],o={};
+ ['hoten','nghe','sonha','duong','to','phuong','quan','tinh','sdt','noilam','dichte','nguoibc','sdtbc','donvi','email','solan'].forEach(k=>o[k]=T(g(k)));
+ o.hoten=o.hoten.toUpperCase();o.ma=T(g('ma')).replace(/\D/g,'').slice(0,10);
+ ['ngaysinh','ngaykp','ngaynv','ngayrv'].forEach(k=>{const t=toISO(g(k));if(t===null){w.push(k);o[k]=''}else o[k]=t});
+ o.gioitinh=pick(g('gioitinh'),['Nam','Nữ']);
+ const dt=T(g('dantoc'));o.dantoc=!dt?'':dt.toLowerCase()==='kinh'?'Kinh':'Khác';o.dantockhac=o.dantoc==='Khác'?dt:'';
+ o.tiem=pick(g('tiem'),['Có','Không','Không rõ']);
+ o.phanloai=pick(g('phanloai'),['Lâm sàng','Xác định phòng xét nghiệm']);
+ o.laymau=pick(g('laymau'),['Có','Không']);
+ o.ketqua=pick(g('ketqua'),['Dương tính','Âm tính','Chưa có kết quả']);
+ const tt=T(g('tinhtrang'));o.tinhtrang=!tt?'':(pick(tt,['Điều trị ngoại trú','Điều trị nội trú','Ra viện','Chuyển viện','Tử vong'])||'Khác');o.ttkhac=o.tinhtrang==='Khác'?tt:'';
+ o.xn=[];o.xnkhac='';split(g('xn')).forEach(t=>{const p=pick(t,['Test nhanh','MAC ELISA','PCR']);if(p){if(!o.xn.includes(p))o.xn.push(p)}else{if(!o.xn.includes('Khác'))o.xn.push('Khác');o.xnkhac=t}});
+ o.benh=[];split(g('benh')).forEach(t=>{const n=t.match(/^(\d+)/);const b=n?ALL[+n[1]-1]:ALL.find(x=>x.slice(x.indexOf('.')+2).toLowerCase()===t.toLowerCase());if(!b)w.push('benh');else if(!o.benh.includes(b))o.benh.push(b)});
+ return o}
+const vn=v=>v?v.split('-').reverse().join('/'):'';
+function toRow(r){return COLS.map(c=>{const k=c[1],v=r[k];
+ if(c[2]==='d')return vn(v);
+ if(c[2]==='l')return (v||[]).map(x=>k==='xn'&&x==='Khác'?(r.xnkhac||'Khác'):x).join('; ');
+ if(k==='dantoc')return v==='Khác'?(r.dantockhac||'Khác'):(v||'');
+ if(k==='tinhtrang')return v==='Khác'?(r.ttkhac||'Khác'):(v||'');
+ return v||''})}
+function book(rows){const ws=XLSX.utils.aoa_to_sheet(rows);
+ for(let r=rows.length;r<300;r++)TXT.forEach(c=>{ws[XLSX.utils.encode_cell({r,c})]={t:'s',v:'',z:'@'}});
+ ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(rows.length,300)-1,c:COLS.length-1}});
+ ws['!cols']=COLS.map((c,i)=>({wch:Math.min(34,Math.max(14,c[0].length*.7))}));
+ const g=[['HƯỚNG DẪN NHẬP'],['- Mỗi bệnh nhân một dòng, bắt đầu từ dòng 2 của sheet "Dữ liệu". Xóa dòng ví dụ (họ tên bắt đầu bằng "(VÍ DỤ)").'],['- Không đổi thứ tự cột. Ngày nhập dạng dd/mm/yyyy.'],['- Cột Bệnh: nhập số thứ tự (vd 13; 14) hoặc đúng tên bệnh, nhiều bệnh cách nhau bằng dấu ;'],['- Cột Dân tộc: Kinh hoặc ghi tên dân tộc khác. Cột Tình trạng: ghi giá trị khác thì tự tính là "Khác".'],[],['Số','Tên bệnh'],...ALL.map(x=>[+x.split('.')[0],x.slice(x.indexOf('.')+2)])];
+ const wg=XLSX.utils.aoa_to_sheet(g);wg['!cols']=[{wch:8},{wch:70}];
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Dữ liệu');XLSX.utils.book_append_sheet(wb,wg,'Hướng dẫn');return wb}
+async function saveBook(wb,name){
+ if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel, hãy kiểm tra mạng và tải lại trang.',1);return}
+ const dl=window.claude?await claude.use('downloads'):null;
+ if(!dl){msg('Chế độ xem này không hỗ trợ tải file. Hãy mở trang trong claude.ai.',1);return}
+ try{await dl.save({filename:name,data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});msg('Đã lưu file '+name)}
+ catch(e){msg(e.code==='declined'?'Đã hủy lưu file.':'Không lưu được file ('+(e.code||e.message)+').',1)}}
+function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','Quận 5','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
+function expXlsx(){if(!recs.length){msg('Chưa có hồ sơ nào để lưu.',1);return}
+ const n=new Date(),s=n.getFullYear()+String(n.getMonth()+1).padStart(2,'0')+String(n.getDate()).padStart(2,'0');
+ saveBook(book([COLS.map(c=>c[0]),...recs.map(toRow)]),'bao-cao-benh-'+s+'.xlsx')}
+$('imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel.',1);return}
+ try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}),ws=wb.Sheets['Dữ liệu']||wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).slice(1),w=[];let n=0,skip=0;
+  rows.forEach(r=>{if(r.every(c=>T(c)===''))return;const o=fromRow(r,w);if(/^\(VÍ DỤ\)/.test(o.hoten))return;if(!o.hoten){skip++;return}o.id=uid();recs.push(o);n++});
+  persist();render();
+  msg(`Đã nhập ${n} hồ sơ`+(skip?`, bỏ qua ${skip} dòng thiếu họ tên`:'')+(w.length?`, ${w.length} ô không hợp lệ đã để trống`:'')+'. Bấm "Lưu file Excel" để lưu lại.',skip||w.length)}
+ catch(err){msg('Không đọc được file Excel này.',1)}};
+render();
 </script>
 </body>
 </html>
