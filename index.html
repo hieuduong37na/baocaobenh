@@ -72,7 +72,7 @@ button:focus-visible{outline:3px solid #f5a623;outline-offset:2px}
  .lg{display:none}
  .wrap .stick{margin:0 -8px 6px;padding:6px 8px}
  .stick .bar{margin:0}
- .stick .bar .btns{width:100%;display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;gap:6px}
+ .stick .bar .btns{width:100%;display:grid;grid-template-columns:1.1fr 1fr 1fr .7fr 1fr;gap:6px}
  .stick .bar .btns>button{min-height:44px;min-width:0;padding:8px 4px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .stick .bar .btns .mbtn{display:inline-block}
  .stick .bar .btns .menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.25);grid-template-columns:1fr 1fr;gap:6px}
@@ -160,7 +160,8 @@ p.sm{margin:4px 0 0}
  .grid3{padding:4px 7px}
  .row{break-inside:avoid}
  .sign{margin-top:8px}
- .row.r3.cls{break-before:page;page-break-before:always}
+ .row.pg2{break-before:page;page-break-before:always}
+ .tbl>.row.pg2{border-top:1px solid #000}
  .tbl{border:0!important;box-shadow:none}
  .tbl>.row{border-left:1px solid #000;border-right:1px solid #000}
  .tbl>.row:first-child{border-top:1px solid #000}
@@ -173,7 +174,7 @@ p.sm{margin:4px 0 0}
 <div class="wrap">
 <div class="stick">
 <div class="bar"><b class="ttl">Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
-<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('cfg').showModal()">⚙ Lưu trữ</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()">🖨 In</button></span></span></div>
+<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('cfg').showModal()">⚙ Lưu trữ</button></span></span></div>
 <input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
 <div id="msg" class="msg" role="status"></div>
 </div>
@@ -269,7 +270,7 @@ function out(o) {
 <div class="row"><div class="cell sec n">Bệnh phải báo cáo trong vòng <b>48 giờ</b> sau khi có chẩn đoán</div></div>
 <div class="row"><div class="grid3" id="b48"></div></div>
 
-<div class="row"><div class="cell"><b>Tình trạng tiêm chủng:</b> Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc
+<div class="row pg2"><div class="cell"><b>Tình trạng tiêm chủng:</b> Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc
  <div class="vxrow">
  <label class="ck vx"><input type="radio" name="tiem" value="Có">Có → Số lần tiêm, uống <input type="number" min="0" name="solan" class="inl"></label>
  <label class="ck vx"><input type="radio" name="tiem" value="Không">Không</label>
