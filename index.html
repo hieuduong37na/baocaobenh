@@ -21,7 +21,7 @@ h1{text-align:center;font-size:18px;margin:8px 0 12px;font-weight:normal}
 .row{display:grid;border-bottom:1px solid var(--line)}
 .cell{padding:8px 10px;border-right:1px solid var(--line);min-width:0}
 .cell:last-child{border-right:0}
-.r2{grid-template-columns:1fr 1fr}.r4{grid-template-columns:1.3fr .8fr 1fr 1fr}.r32{grid-template-columns:2fr 1fr}.r3{grid-template-columns:repeat(3,1fr)}
+.r2{grid-template-columns:1fr 1fr}.r4{grid-template-columns:minmax(120px,.7fr) .65fr 1fr 1.25fr}.r32{grid-template-columns:2fr 1fr}.r3{grid-template-columns:repeat(3,1fr)}
 .sec{font-weight:bold;text-transform:uppercase}
 .sec.n{font-weight:normal}
 label.l{display:block;margin-bottom:4px}
@@ -160,7 +160,7 @@ p.sm{margin:4px 0 0}
  .grid3{padding:4px 7px}
  .row{break-inside:avoid}
  .sign{margin-top:8px}
- .row.pg2{break-before:page;page-break-before:always}
+ .pgap{break-before:page;page-break-before:always;height:14mm}
  .tbl>.row.pg2{border-top:1px solid #000}
  .tbl{border:0!important;box-shadow:none}
  .tbl>.row{border-left:1px solid #000;border-right:1px solid #000}
@@ -168,6 +168,40 @@ p.sm{margin:4px 0 0}
  .tbl>.row.r3.cls{border-top:1px solid #000}
  .sign .r{line-height:1.8}
 }
+
+/* ===== In ra giống bản Word gốc (2 trang A4) ===== */
+.ptitle{display:none}
+@media print{
+ body{font-size:14.5px;line-height:1.35}
+ .wrap{padding:14mm 28mm 10mm 27mm}
+ .ptitle{display:block;font-weight:bold;font-size:12.5px;margin:0 0 8px -8mm}
+ h1{font-size:15px;margin:0 0 8px}
+ .cell{padding:7px 8px}
+ input,textarea{font-size:14px!important;min-height:22px!important}
+ .mc input{width:23px!important;height:26px}
+ .ck{margin:2px 0}
+ .grid3{padding:6px 8px}
+ .row.r3.cls .cell b{margin:8px 0 4px}
+ .sign{margin-top:14px;align-items:flex-start;flex-wrap:nowrap}
+ .sign .r{margin-left:auto;min-width:0;width:auto}
+ .src{margin:70px 0 0 -8mm;font-size:13px;color:#000}
+}
+.pgap{display:none}
+@media print{
+ .pgap{display:block}
+ .row.r3.cls>.cell:first-child .ck{display:inline-flex;margin-right:12px}
+}
+.oi textarea.xk{flex:1 1 130px;min-width:130px;width:auto;padding:4px 6px}
+@media print{.oi textarea.xk{flex:1 1 90px;min-width:90px}}
+.pv{display:none}
+@media print{
+ textarea.ag{display:none!important}
+ .pv{display:block;white-space:pre-wrap;overflow-wrap:anywhere;border-bottom:1px dotted #000;min-height:18px;padding:1px 3px;font-size:14px;line-height:1.35}
+ .oi .pv.xk{flex:1 1 90px;min-width:90px;margin-left:4px}
+ .r3.cls{grid-template-columns:2fr 1fr .85fr}
+}
+@media screen and (min-width:761px){.r3.cls{grid-template-columns:2fr 1fr .85fr}}
+@media print{input[name=ttkhac]{width:56px!important;min-width:0}}
 </style>
 </head>
 <body>
@@ -225,6 +259,7 @@ function out(o) {
 <p class="sm">File được lưu trong thư mục "Báo cáo trường hợp bệnh" trên Drive của bạn. Chức năng Drive chỉ chạy khi mở trực tiếp file HTML này trên máy, không chạy trong claude.ai.</p>
 <div style="text-align:right;margin-top:8px"><button onclick="saveCfg()">Xong</button></div></dialog>
 <div id="pbatch"></div>
+<div class="ptitle">Biểu mẫu 1 - Báo cáo trường hợp bệnh</div>
 <h1>BÁO CÁO TRƯỜNG HỢP BỆNH</h1>
 
 <form id="f" class="tbl" onsubmit="return false">
@@ -270,6 +305,7 @@ function out(o) {
 <div class="row"><div class="cell sec n">Bệnh phải báo cáo trong vòng <b>48 giờ</b> sau khi có chẩn đoán</div></div>
 <div class="row"><div class="grid3" id="b48"></div></div>
 
+<div class="pgap"></div>
 <div class="row pg2"><div class="cell"><b>Tình trạng tiêm chủng:</b> Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc
  <div class="vxrow">
  <label class="ck vx"><input type="radio" name="tiem" value="Có">Có → Số lần tiêm, uống <input type="number" min="0" name="solan" class="inl"></label>
@@ -288,7 +324,7 @@ function out(o) {
   <div class="oi"><label class="ck"><input type="checkbox" name="xn" value="Test nhanh">Test nhanh</label>
   <label class="ck"><input type="checkbox" name="xn" value="MAC ELISA">MAC ELISA</label>
   <label class="ck"><input type="checkbox" name="xn" value="PCR">PCR</label>
-  <label class="ck"><input type="checkbox" name="xn" value="Khác">Khác:</label><input type="text" name="xnkhac" class="sh"></div>
+  <label class="ck"><input type="checkbox" name="xn" value="Khác">Khác:</label><textarea name="xnkhac" rows="1" class="ag xk" placeholder="Nhập loại xét nghiệm khác"></textarea></div>
   <b>Kết quả xét nghiệm chẩn đoán:</b>
   <div class="oi"><label class="ck"><input type="radio" name="ketqua" value="Dương tính">Dương tính</label>
   <label class="ck"><input type="radio" name="ketqua" value="Âm tính">Âm tính</label>
@@ -324,7 +360,7 @@ function out(o) {
  <div><i>Nơi nhận:</i><br><textarea form="f" name="noinhan" rows="1" class="ag" style="min-width:200px"></textarea></div>
  <div class="r">Ngày <input class="inl" style="width:50px" form="f" name="d"> tháng <input class="inl" style="width:50px" form="f" name="m"> năm <input class="inl" style="width:60px" form="f" name="y"><br><b>THỦ TRƯỞNG ĐƠN VỊ</b><br><br><br><br></div>
 </div>
-<p class="sm"><b>Nguồn</b>: Thông tư 54/2015/TT-BYT</p>
+<p class="sm src"><b>Nguồn</b>: Thông tư 54/2015/TT-BYT</p>
 <section class="list"><div class="bar"><b>Danh sách hồ sơ (<span id="cnt">0</span>)</b><span class="btns"><button onclick="expXlsx()">💾 Lưu file Excel</button><button class="alt" onclick="clearAll(this)">Xóa tất cả</button></span></div><div class="scroll"><table id="tb"></table></div></section>
 <p class="hint">Hồ sơ được giữ trong trình duyệt này; bấm “Lưu file Excel” để tải file về máy và có thể nhập lại sau.</p>
 </div>
@@ -344,8 +380,9 @@ const ma=document.getElementById('ma');
 for(let i=0;i<10;i++){const e=document.createElement('input');e.type='text';e.maxLength=1;e.inputMode='numeric';e.name='ma'+i;e.setAttribute('form','f');
  e.oninput=()=>{if(e.value&&e.nextElementSibling)e.nextElementSibling.focus()};
  e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};ma.appendChild(e);}
-function grow(e){e.style.height='auto';e.style.height=e.scrollHeight+'px'}
+function grow(e){e.style.height='auto';e.style.height=e.scrollHeight+'px';const p=e.nextElementSibling;if(p&&p.classList.contains('pv'))p.textContent=e.value}
 function growAll(){document.querySelectorAll('textarea.ag').forEach(grow)}
+document.querySelectorAll('textarea.ag').forEach(e=>{const pv=document.createElement('div');pv.className='pv'+(e.classList.contains('xk')?' xk':'');pv.textContent=e.value;e.after(pv)});
 document.querySelectorAll('textarea.ag').forEach(e=>{
  e.addEventListener('input',()=>{if(!e.dataset.multi&&/\n/.test(e.value))e.value=e.value.replace(/\s*\n\s*/g,' ');grow(e)});
  if(!e.dataset.multi)e.addEventListener('keydown',ev=>{if(ev.key==='Enter')ev.preventDefault()})});
