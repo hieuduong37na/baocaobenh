@@ -172,11 +172,12 @@ p.sm{margin:4px 0 0}
 <label class="ck"><input type="checkbox" id="cDrv">Đồng thời gửi cả hai file lên Google Drive</label>
 <label class="l" style="margin-top:8px">Link kết nối Google Drive (Web app URL):</label>
 <input type="text" id="cUrl" placeholder="https://script.google.com/macros/s/.../exec">
-<details><summary>Cách lấy link Google Drive (làm 1 lần)</summary>
+<p class="sm">Link Google Drive đã được cài sẵn trong trang – không cần thiết lập gì thêm. Chỉ đổi link nếu bạn dùng Apps Script khác.</p>
+<details><summary>Dùng link Google Drive của riêng bạn (không bắt buộc)</summary>
 <ol class="sm"><li>Vào <b>script.google.com</b> → Dự án mới, xóa mã cũ, dán đoạn mã bên dưới.</li>
 <li>Bấm <b>Triển khai → Tùy chọn triển khai mới → Ứng dụng web</b>: "Thực thi với tư cách" = <b>Tôi</b>; "Ai có quyền truy cập" = <b>Bất kỳ ai</b>.</li>
 <li>Cấp quyền truy cập Drive khi được hỏi, rồi sao chép <b>URL ứng dụng web</b> dán vào ô trên.</li></ol>
-<textarea id="gs" readonly rows="8" style="font:11px monospace;height:150px;resize:vertical;overflow:auto">const FOLDER = 'Báo cáo trường hợp bệnh';
+<textarea id="gs" readonly rows="20" style="font:11px/1.35 monospace;height:340px;resize:vertical;overflow:auto;white-space:pre">const FOLDER = 'Báo cáo trường hợp bệnh';
 function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
@@ -192,8 +193,9 @@ function doPost(e) {
 }
 function out(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
-}</textarea>
-<button class="alt" onclick="navigator.clipboard.writeText($('gs').value).then(()=>msg('Đã sao chép mã.'))">Sao chép mã</button></details>
+}
+// ===== HẾT MÃ (nhớ chép đủ đến dòng này) =====</textarea>
+<button class="alt" onclick="copyGs()">Sao chép toàn bộ mã</button></details>
 <p class="sm">File được lưu trong thư mục "Báo cáo trường hợp bệnh" trên Drive của bạn. Chức năng Drive chỉ chạy khi mở trực tiếp file HTML này trên máy, không chạy trong claude.ai.</p>
 <div style="text-align:right;margin-top:8px"><button onclick="saveCfg()">Xong</button></div></dialog>
 <div id="pbatch"></div>
@@ -354,6 +356,9 @@ function renderList(){const q=nq($('lq').value),th=r=>/^\d{4}-\d{2}$/.test(r.tha
   `<tr${r.id===cur?' class="on"':''}><td><input type="checkbox" ${sel.has(r.id)?'checked':''} onchange="selTog('${r.id}',this.checked)" aria-label="Chọn hồ sơ"></td><td>${i+1}</td><td>${esc(r.hoten)}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td>${th(r)}</td><td class="a"><button class="alt" onclick="listOpen('${r.id}')">Sửa</button> <button class="alt" onclick="listPrint('${r.id}')">In</button> <button class="alt" onclick="$('lst').close();cloneRec('${r.id}')">Nhân bản</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`).join(''):'<tr><td colspan="7">'+(recs.length?'Không có hồ sơ khớp.':'Chưa có hồ sơ nào.')+'</td></tr>');
 updSel();
  $('ln').textContent='Hiển thị '+rows.length+'/'+recs.length+' hồ sơ. "Sửa" nạp hồ sơ vào biểu mẫu; "In" nạp hồ sơ rồi mở hộp thoại in.'}
+async function copyGs(){const t=$('gs');t.focus();t.select();let ok=false;
+ try{await navigator.clipboard.writeText(t.value);ok=true}catch(e){try{ok=document.execCommand('copy')}catch(e2){}}
+ msg(ok?'Đã sao chép đủ '+t.value.split('\n').length+' dòng mã – dán vào Apps Script (Ctrl+V).':'Không tự sao chép được – hãy bấm vào ô mã, Ctrl+A rồi Ctrl+C.',!ok)}
 function toggleMenu(){$('menu').classList.toggle('open')}
 function closeMenu(){$('menu').classList.remove('open')}
 document.addEventListener('click',e=>{if(!e.target.closest('.btns'))closeMenu()});
@@ -478,10 +483,10 @@ async function wordBuf(list){list=[].concat(list);const D=docx,
  const doc=new D.Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:850,bottom:850,left:1130,right:1130}}},children:list.flatMap(one)}]});
  return await (await D.Packer.toBlob(doc)).arrayBuffer()}
 /* ---- Cấu hình lưu trữ & Google Drive ---- */
-const CK='bctb_cfg_v1';let cfg={drv:false,url:''};
-try{cfg={...cfg,...JSON.parse(localStorage.getItem(CK)||'{}')}}catch(e){}
+const CK='bctb_cfg_v1',DRIVE_URL='https://script.google.com/macros/s/AKfycbz6mucd1N9G2L8peH7cTj1x8rxZl2EGqlwrGGwRviLCYuuI6vfjef29naKHrm6mmD4e8A/exec';let cfg={drv:true,url:DRIVE_URL};
+try{const sv=JSON.parse(localStorage.getItem(CK)||'{}');if(typeof sv.drv==='boolean')cfg.drv=sv.drv;if(/^https:\/\/script\.google\.com\//.test(sv.url||''))cfg.url=sv.url}catch(e){}
 $('cDrv').checked=cfg.drv;$('cUrl').value=cfg.url;
-function saveCfg(){cfg={drv:$('cDrv').checked,url:T($('cUrl').value)};
+function saveCfg(){cfg={drv:$('cDrv').checked,url:/^https:\/\/script\.google\.com\//.test(T($('cUrl').value))?T($('cUrl').value):DRIVE_URL};$('cUrl').value=cfg.url;
  try{localStorage.setItem(CK,JSON.stringify(cfg))}catch(e){}
  $('cfg').close();msg('Đã lưu cài đặt.')}
 const b64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
