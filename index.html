@@ -72,7 +72,7 @@ button:focus-visible{outline:3px solid #f5a623;outline-offset:2px}
  .lg{display:none}
  .wrap .stick{margin:0 -8px 6px;padding:6px 8px}
  .stick .bar{margin:0}
- .stick .bar .btns{width:100%;display:grid;grid-template-columns:1.1fr 1fr 1fr .7fr 1fr;gap:6px}
+ .stick .bar .btns{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
  .stick .bar .btns>button{min-height:44px;min-width:0;padding:8px 4px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .stick .bar .btns .mbtn{display:inline-block}
  .stick .bar .btns .menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.25);grid-template-columns:1fr 1fr;gap:6px}
@@ -208,7 +208,7 @@ p.sm{margin:4px 0 0}
 <div class="wrap">
 <div class="stick">
 <div class="bar"><b class="ttl">Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
-<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="loadDrive()">☁ Tải từ Drive</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('cfg').showModal()">⚙ Lưu trữ</button></span></span></div>
+<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="loadDrive()" aria-label="Tải hồ sơ từ Google Drive">☁ Tải<span class="lg"> hồ sơ</span> từ Drive</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button></span></span></div>
 <input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
 <div id="msg" class="msg" role="status"></div>
 </div>
@@ -612,7 +612,7 @@ function saveCfg(){cfg={drv:$('cDrv').checked,url:/^https:\/\/script\.google\.co
  $('cfg').close();msg('Đã lưu cài đặt.')}
 const b64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
 async function toDrive(files){
- if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ – mở "⚙ Lưu trữ" để dán link.',1);return}
+ if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ trong trang.',1);return}
  const body=JSON.stringify({files:files.map(f=>({name:f.name,mime:f.mime,b64:b64(f.buf)}))});
  try{const j=await (await fetch(cfg.url,{method:'POST',body})).json();
   msg(j.ok?'Đã lưu lên Google Drive (thư mục "Báo cáo trường hợp bệnh").':'Google Drive báo lỗi: '+j.error,!j.ok)}
@@ -662,7 +662,7 @@ function parseDSV(t,d){const rows=[];let r=[],c='',q=false;t=t.replace(/\r\n?/g,
   else if(ch==='"'&&!c)q=true;else if(ch===d){r.push(c);c=''}else if(ch==='\n'){r.push(c);rows.push(r);r=[];c=''}else c+=ch}
  r.push(c);rows.push(r);return rows}
 async function loadDrive(){
- if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ – mở "⚙ Lưu trữ" để kiểm tra.',1);return}
+ if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ trong trang.',1);return}
  if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel, kiểm tra mạng.',1);return}
  msg('Đang tải dữ liệu từ Google Drive…');
  let j;
