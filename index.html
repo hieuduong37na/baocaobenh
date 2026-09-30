@@ -533,17 +533,57 @@ function fields(d){const bn=d.benh||[],dia=[d.sonha&&'Số nhà '+d.sonha,d.duon
   ['Ngày khởi phát',dmy(d.ngaykp)],['Ngày nhập viện',dmy(d.ngaynv)],['Ngày ra viện/chuyển viện/tử vong',dmy(d.ngayrv)],
   ['Tình trạng',d.tinhtrang==='Khác'?'Khác: '+(d.ttkhac||''):d.tinhtrang],
   ['#','TIỀN SỬ DỊCH TỄ'],['*',d.dichte],['#','THÔNG TIN NGƯỜI BÁO CÁO'],['Tên người báo cáo',d.nguoibc],['Điện thoại',d.sdtbc],['Đơn vị công tác',d.donvi],['Email',d.email]]}
-async function wordBuf(list){list=[].concat(list);const D=docx,
- cell=(t,o={})=>new D.TableCell({columnSpan:o.span,width:{size:o.w||6800,type:D.WidthType.DXA},
-  shading:o.sh?{fill:'E8E8E8',type:D.ShadingType.CLEAR}:undefined,margins:{top:40,bottom:40,left:80,right:80},
-  children:String(t||'').split('\n').map(x=>new D.Paragraph({children:[new D.TextRun({text:x,bold:!!o.b,size:21,font:'Times New Roman'})]}))}),
- P=(t,o={})=>new D.Paragraph({alignment:o.al,pageBreakBefore:!!o.pb,spacing:{before:o.sb||0,after:o.sa||0},children:[new D.TextRun({text:t,bold:!!o.b,italics:!!o.i,size:o.z||22,font:'Times New Roman'})]}),
- one=(d,i)=>{const rows=fields(d).map(([k,v])=>k==='#'?new D.TableRow({children:[cell(v,{span:2,w:9600,b:1,sh:1})]}):k==='*'?new D.TableRow({children:[cell(v,{span:2,w:9600})]}):new D.TableRow({children:[cell(k,{w:2800}),cell(v)]}));
-  return[P('BÁO CÁO TRƯỜNG HỢP BỆNH',{al:D.AlignmentType.CENTER,b:1,z:28,sa:160,pb:i>0}),
-   new D.Table({width:{size:9600,type:D.WidthType.DXA},columnWidths:[2800,6800],rows}),
-   P('Ngày ….. tháng ….. năm …….',{al:D.AlignmentType.RIGHT,sb:240}),P('THỦ TRƯỞNG ĐƠN VỊ',{al:D.AlignmentType.RIGHT,b:1}),
-   P('Nơi nhận: '+(d.noinhan||''),{i:1,sb:120}),P('Nguồn: Thông tư 54/2015/TT-BYT',{z:18,sb:120})]};
- const doc=new D.Document({sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:850,bottom:850,left:1130,right:1130}}},children:list.flatMap(one)}]});
+async function wordBuf(list){list=[].concat(list);const D=docx,W=8676,G=723,FT='Times New Roman',SZ=22,DX=D.WidthType.DXA,CT=D.AlignmentType.CENTER,
+ run=(t,o={})=>new D.TextRun({text:String(t==null?'':t),bold:!!o.b,italics:!!o.i,size:o.z||SZ,font:o.f||FT}),
+ L=t=>run(t),V=t=>run(t,{b:1}),
+ para=(rs,o={})=>new D.Paragraph({alignment:o.al,pageBreakBefore:!!o.pb,spacing:{before:o.sb||0,after:o.sa==null?40:o.sa,line:o.ln||252},children:[].concat(rs).flat(2)}),
+ vals=t=>String(t||'').split('\n').map(x=>para(V(x))),
+ cb=(on,t)=>[run(on?'☒':'☐',{f:'Segoe UI Symbol'}),L(' '+t+'   ')],
+ tiny=()=>new D.Paragraph({spacing:{before:0,after:0,line:20},children:[run('',{z:2})]}),
+ mk=(kids,span)=>new D.TableCell({columnSpan:span,width:{size:span*G,type:DX},margins:{top:60,bottom:60,left:100,right:100},children:kids}),
+ row=(cells,h)=>new D.TableRow({cantSplit:true,...(h?{height:{value:h,rule:D.HeightRule.ATLEAST}}:{}),children:cells}),
+ BD={style:D.BorderStyle.SINGLE,size:4,color:'000000'},tbl=rows=>new D.Table({width:{size:W,type:DX},columnWidths:Array(12).fill(G),layout:D.TableLayoutType.FIXED,borders:{top:BD,bottom:BD,left:BD,right:BD,insideHorizontal:BD,insideVertical:BD},rows}),
+ boxes=(str,n,bw)=>{const ch=String(str||'').replace(/\D/g,'').slice(0,n).padEnd(n,' ').split('');
+  return new D.Table({width:{size:n*bw,type:DX},columnWidths:Array(n).fill(bw),layout:D.TableLayoutType.FIXED,rows:[new D.TableRow({height:{value:340,rule:D.HeightRule.EXACT},children:ch.map(c=>new D.TableCell({width:{size:bw,type:DX},verticalAlign:D.VerticalAlign.CENTER,margins:{top:0,bottom:0,left:0,right:0},children:[para(V(c),{al:CT,ln:240,sa:0})]}))})]})},
+ dateCell=(lab,v,span,bw,first)=>[para(L(lab),{sb:first?0:120}),boxes(dmy(v),8,bw),tiny()],
+ one=(d,i)=>{const has=n=>(d.benh||[]).includes(ALL[n-1]),
+  col=(a,b)=>mk(Array.from({length:b-a+1},(_,k)=>para(cb(has(a+k),ALL[a+k-1]),{sa:20})),4),
+  xn=x=>(d.xn||[]).includes(x),
+  p1=[row([mk([para(run('THÔNG TIN BỆNH NHÂN',{b:1}))],12)]),
+   row([mk([para(L('Họ và tên bệnh nhân (CHỮ IN):')),para(V((d.hoten||'').toUpperCase()))],7),mk([para(L('Mã bệnh nhân:')),boxes(d.ma,10,330),tiny()],5)]),
+   row([mk([para(L('Ngày, tháng, năm sinh:')),boxes(dmy(d.ngaysinh),8,230),tiny()],3),
+    mk([para(L('Giới tính:')),para(cb(d.gioitinh==='Nam','Nam')),para(cb(d.gioitinh==='Nữ','Nữ'))],2),
+    mk([para(L('Dân tộc:')),para(cb(d.dantoc==='Kinh','Kinh')),para([...cb(d.dantoc==='Khác','Khác:'),V(d.dantockhac||'')])],3),
+    mk([para(L('Nghề nghiệp:')),para(V(d.nghe))],4)]),
+   row([mk([para(L('Nơi ở hiện nay:')),para([L('Số nhà: '),V(d.sonha),L('    Đường/phố: '),V(d.duong),L('    Tổ/xóm/ấp/bản: '),V(d.to)]),para([L('Phường/xã/thị trấn: '),V(d.phuong),L('    Tỉnh/thành phố: '),V(d.tinh)])],9),mk([para(L('Điện thoại liên lạc:')),para(V(d.sdt))],3)]),
+   row([mk([para([L('Nơi làm việc/học tập: '),V(d.noilam)])],12)]),
+   row([mk([para(run('CHẨN ĐOÁN BỆNH (LÂM SÀNG HOẶC XÁC ĐỊNH PHÒNG THÍ NGHIỆM)',{b:1}),{sa:80}),para(run('BỆNH PHẢI BÁO CÁO NGAY SAU KHI CÓ CHẨN ĐOÁN, KHÔNG MUỘN QUÁ 24 GIỜ',{b:1}))],12)]),
+   row([col(1,7),col(8,14),col(15,20)]),
+   row([mk([para([L('BỆNH PHẢI BÁO CÁO TRONG VÒNG '),run('48 GIỜ',{b:1}),L(' SAU KHI CÓ CHẨN ĐOÁN')])],12)]),
+   row([col(21,25),col(26,30),col(31,34)])],
+  p2=[row([mk([para([run('Tình trạng tiêm chủng: ',{b:1}),L('Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc')]),
+     para([...cb(d.tiem==='Có','Có → Số lần tiêm, uống ['+(d.solan||'   ')+']'),...cb(d.tiem==='Không','Không'),...cb(d.tiem==='Không rõ','Không rõ')])],12)]),
+   row([mk([para(run('Phân loại chẩn đoán:',{b:1})),para([...cb(d.phanloai==='Lâm sàng','Lâm sàng'),...cb(d.phanloai==='Xác định phòng xét nghiệm','Xác định phòng xét nghiệm')]),
+     para(run('Lấy mẫu xét nghiệm chẩn đoán:',{b:1}),{sb:100}),para([...cb(d.laymau==='Có','Có'),...cb(d.laymau==='Không','Không')]),
+     para(run('Loại xét nghiệm:',{b:1}),{sb:100}),para([...cb(xn('Test nhanh'),'Test nhanh'),...cb(xn('MAC ELISA'),'MAC ELISA'),...cb(xn('PCR'),'PCR')]),para([...cb(xn('Khác'),'Khác:'),V(xn('Khác')?d.xnkhac||'':'')]),
+     para(run('Kết quả xét nghiệm chẩn đoán:',{b:1}),{sb:100}),para([...cb(d.ketqua==='Dương tính','Dương tính'),...cb(d.ketqua==='Âm tính','Âm tính'),...cb(d.ketqua==='Chưa có kết quả','Chưa có kết quả')])],5),
+    mk([...dateCell('Ngày khởi phát:',d.ngaykp,4,300,1),...dateCell('Ngày nhập viện:',d.ngaynv,4,300),...dateCell('Ngày ra viện/chuyển viện/tử vong:',d.ngayrv,4,300)],4),
+    mk([para(run('Tình trạng:',{b:1})),...['Điều trị ngoại trú','Điều trị nội trú','Ra viện','Chuyển viện','Tử vong'].map(t=>para(cb(d.tinhtrang===t,t),{sa:60})),para([...cb(d.tinhtrang==='Khác','Khác'),V(d.tinhtrang==='Khác'?d.ttkhac||'':'')])],3)]),
+   row([mk([para(L(''))],12)],420),
+   row([mk([para([run('TIỀN SỬ DỊCH TỄ ',{b:1}),run('(thời gian đi lại trước khi mắc bệnh, tiếp xúc người bệnh/ trường hợp nghi ngờ, tiếp xúc động vật/gia cầm, nơi tiếp xúc)',{i:1})])],12)]),
+   row([mk(vals(d.dichte),12)],1100),
+   row([mk([para(run('THÔNG TIN NGƯỜI BÁO CÁO',{b:1}))],12)]),
+   row([mk([para([L('Tên người báo cáo: '),V(d.nguoibc),L('            Ký tên')])],8),mk([para([L('Điện thoại: '),V(d.sdtbc)])],4)]),
+   row([mk([para([L('Đơn vị công tác: '),V(d.donvi)])],8),mk([para([L('Email: '),V(d.email)])],4)])],
+  nb=D.BorderStyle.NONE,none={style:nb,size:0,color:'FFFFFF'},
+  sc=(kids)=>new D.TableCell({width:{size:W/2,type:DX},borders:{top:none,bottom:none,left:none,right:none},children:kids}),
+  sign=new D.Table({width:{size:W,type:DX},columnWidths:[W/2,W/2],borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new D.TableRow({children:[
+   sc([para([run('Nơi nhận: ',{b:1,i:1}),V(d.noinhan||'')],{sb:120})]),
+   sc([para(L('Ngày '+(d.d||'…..')+' tháng '+(d.m||'…..')+' năm '+(d.y||'…….')),{al:CT,sb:120}),para(run('THỦ TRƯỞNG ĐƠN VỊ',{b:1}),{al:CT})])]})]});
+  return[para(run('Biểu mẫu 1 - Báo cáo trường hợp bệnh',{b:1,z:20}),{pb:i>0,sa:60}),para(run('BÁO CÁO TRƯỜNG HỢP BỆNH',{z:24}),{al:CT,sa:120}),
+   tbl(p1),para([run('',{z:2})],{pb:true,ln:20,sa:0}),tbl(p2),tiny(),sign,
+   para([run('Nguồn',{b:1,z:20}),run(': Thông tư 54/2015/TT-BYT',{z:20})],{sb:1200})]};
+ const doc=new D.Document({styles:{default:{document:{run:{font:FT,size:SZ}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:700,bottom:700,left:1530,right:1700}}},children:list.flatMap(one)}]});
  return await (await D.Packer.toBlob(doc)).arrayBuffer()}
 /* ---- Cấu hình lưu trữ & Google Drive ---- */
 const CK='bctb_cfg_v1',DRIVE_URL='https://script.google.com/macros/s/AKfycbz6mucd1N9G2L8peH7cTj1x8rxZl2EGqlwrGGwRviLCYuuI6vfjef29naKHrm6mmD4e8A/exec';let cfg={drv:true,url:DRIVE_URL};
