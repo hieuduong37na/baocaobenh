@@ -202,6 +202,7 @@ p.sm{margin:4px 0 0}
 }
 @media screen and (min-width:761px){.r3.cls{grid-template-columns:2fr 1fr .85fr}}
 @media print{input[name=ttkhac]{width:56px!important;min-width:0}}
+@media print{.sign .r input{border:0!important;border-bottom:1px dotted #000!important;background:transparent!important;text-align:center;width:46px!important;padding:0!important;min-height:0!important;height:1.2em;border-radius:0}.sign .r input[name=y]{width:56px!important}}
 </style>
 </head>
 <body>
@@ -613,6 +614,7 @@ function saveCfg(){cfg={drv:$('cDrv').checked,url:/^https:\/\/script\.google\.co
 const b64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
 async function toDrive(files){
  if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ trong trang.',1);return}
+ msg('Đang gửi lên Google Drive…');
  const body=JSON.stringify({files:files.map(f=>({name:f.name,mime:f.mime,b64:b64(f.buf)}))});
  try{const j=await (await fetch(cfg.url,{method:'POST',body})).json();
   msg(j.ok?'Đã lưu lên Google Drive (thư mục "Báo cáo trường hợp bệnh").':'Google Drive báo lỗi: '+j.error,!j.ok)}
@@ -642,10 +644,10 @@ async function exportOnSave(d){
  /* Word và Excel tạo độc lập: thiếu thư viện nào chỉ bỏ file đó */
  try{if(typeof docx==='undefined')throw 0;wbuf=await wordBuf(d)}catch(e){fail.push('Word (chưa tải được thư viện, kiểm tra mạng)')}
  try{if(typeof XLSX==='undefined')throw 0;xbuf=xlsBuf(book(null,byMonth()))}catch(e){fail.push('Excel (chưa tải được thư viện, kiểm tra mạng)')}
- if(wbuf){await saveFile(wn,wbuf,WM);done.push('Word');files.push({name:wn,mime:WM,buf:wbuf});await wait(500)}
- if(xbuf){await saveFile('bao-cao-benh-tong-hop.xlsx',xbuf,XM);done.push('Excel');files.push({name:'bao-cao-benh-tong-hop.xlsx',mime:XM,buf:xbuf})}
+ if(wbuf){done.push('Word');files.push({name:wn,mime:WM,buf:wbuf})}
+ if(xbuf){done.push('Excel');files.push({name:'bao-cao-benh-tong-hop.xlsx',mime:XM,buf:xbuf})}
  if(cfg.drv&&files.length){await toDrive(files);return}
- msg((done.length?'Đã tự động lưu file '+done.join(' và ')+' (xem thư mục Tải xuống). ':'')+(fail.length?'Không tạo được: '+fail.join('; ')+'.':''),!done.length||fail.length);}
+ msg('Đã lưu hồ sơ trên trình duyệt (gửi Google Drive đang tắt). '+(fail.length?'Không tạo được: '+fail.join('; ')+'.':''),fail.length>0);}
 function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
 function expXlsx(){if(!recs.length){msg('Chưa có hồ sơ nào để lưu.',1);return}
  saveBook(book(null,byMonth()),'bao-cao-benh-tong-hop.xlsx')}
