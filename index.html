@@ -208,7 +208,7 @@ p.sm{margin:4px 0 0}
 <div class="wrap">
 <div class="stick">
 <div class="bar"><b class="ttl">Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
-<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('cfg').showModal()">⚙ Lưu trữ</button></span></span></div>
+<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="loadDrive()">☁ Tải từ Drive</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button><button class="alt" onclick="$('cfg').showModal()">⚙ Lưu trữ</button></span></span></div>
 <input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
 <div id="msg" class="msg" role="status"></div>
 </div>
@@ -238,12 +238,19 @@ p.sm{margin:4px 0 0}
 <li>Bấm <b>Triển khai → Tùy chọn triển khai mới → Ứng dụng web</b>: "Thực thi với tư cách" = <b>Tôi</b>; "Ai có quyền truy cập" = <b>Bất kỳ ai</b>.</li>
 <li>Cấp quyền truy cập Drive khi được hỏi, rồi sao chép <b>URL ứng dụng web</b> dán vào ô trên.</li></ol>
 <textarea id="gs" readonly rows="20" style="font:11px/1.35 monospace;height:340px;resize:vertical;overflow:auto;white-space:pre">const FOLDER = 'Báo cáo trường hợp bệnh';
+const MASTER = 'bao-cao-benh-tong-hop.xlsx';
+
+function getFolder_() {
+  const it = DriveApp.getFoldersByName(FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER);
+}
+
+// Lưu file từ trang HTML lên Drive
 function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
-    const it = DriveApp.getFoldersByName(FOLDER);
-    const fo = it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER);
-    (p.files || []).forEach(f => {
+    const fo = getFolder_();
+    (p.files || []).forEach(f =&gt; {
       const ex = fo.getFilesByName(f.name);
       while (ex.hasNext()) ex.next().setTrashed(true); // ghi đè file cùng tên
       fo.createFile(Utilities.newBlob(Utilities.base64Decode(f.b64), f.mime, f.name));
@@ -251,6 +258,17 @@ function doPost(e) {
     return out({ok: true, url: fo.getUrl()});
   } catch (err) { return out({ok: false, error: String(err)}); }
 }
+
+// Trang HTML đọc file Excel tổng hợp từ Drive
+function doGet(e) {
+  try {
+    const it = getFolder_().getFilesByName(MASTER);
+    if (!it.hasNext()) return out({ok: false, error: 'Chưa có file ' + MASTER + ' trong thư mục ' + FOLDER});
+    const f = it.next();
+    return out({ok: true, name: f.getName(), updated: f.getLastUpdated(), b64: Utilities.base64Encode(f.getBlob().getBytes())});
+  } catch (err) { return out({ok: false, error: String(err)}); }
+}
+
 function out(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -643,12 +661,23 @@ function parseDSV(t,d){const rows=[];let r=[],c='',q=false;t=t.replace(/\r\n?/g,
   if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
   else if(ch==='"'&&!c)q=true;else if(ch===d){r.push(c);c=''}else if(ch==='\n'){r.push(c);rows.push(r);r=[];c=''}else c+=ch}
  r.push(c);rows.push(r);return rows}
-$('imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
- if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel.',1);return}
- try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}),w=[],t={n:0,u:0,skip:0};
+async function loadDrive(){
+ if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ – mở "⚙ Lưu trữ" để kiểm tra.',1);return}
+ if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel, kiểm tra mạng.',1);return}
+ msg('Đang tải dữ liệu từ Google Drive…');
+ let j;
+ try{const r=await fetch(cfg.url+(cfg.url.includes('?')?'&':'?')+'action=get');j=await r.json()}
+ catch(e){msg('Không đọc được dữ liệu từ Drive. Hãy cập nhật mã Apps Script mới (có hàm doGet), triển khai lại, và mở trang trực tiếp trên máy.',1);return}
+ if(!j||!j.ok){msg('Google Drive báo: '+((j&&j.error)||'không có dữ liệu'),1);return}
+ try{importWb(XLSX.read(Uint8Array.from(atob(j.b64),c=>c.charCodeAt(0)),{type:'array'}))}
+ catch(e){msg('File trên Drive không đọc được: '+(e.message||e),1)}}
+function importWb(wb){const w=[],t={n:0,u:0,skip:0};
   wb.SheetNames.filter(x=>x!=='Hướng dẫn').forEach(sn=>{const m=/^(\d{2})-(\d{4})$/.exec(sn),
    r=ingest(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}).slice(1),m?m[2]+'-'+m[1]:nowYM(),w);t.n+=r.n;t.u+=r.u;t.skip+=r.skip});
   report(t,w)}
+$('imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel.',1);return}
+ try{importWb(XLSX.read(await f.arrayBuffer(),{type:'array'}))}
  catch(err){msg('Không đọc được file Excel này.',1)}};
 function pasteImport(){const tx=$('gpaste').value;if(!T(tx)){msg('Hãy dán dữ liệu đã copy từ Google Sheet vào ô trống.',1);return}
  const rows=parseDSV(tx,'\t'),w=[];report(ingest(rows,nowYM(),w),w);$('gpaste').value='';$('gsd').close()}
