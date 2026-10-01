@@ -72,7 +72,7 @@ button:focus-visible{outline:3px solid #f5a623;outline-offset:2px}
  .lg{display:none}
  .wrap .stick{margin:0 -8px 6px;padding:6px 8px}
  .stick .bar{margin:0}
- .stick .bar .btns{width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+ .stick .bar .btns{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
  .stick .bar .btns>button{min-height:44px;min-width:0;padding:8px 4px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .stick .bar .btns .mbtn{display:inline-block}
  .stick .bar .btns .menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.25);grid-template-columns:1fr 1fr;gap:6px}
@@ -209,7 +209,7 @@ p.sm{margin:4px 0 0}
 <div class="wrap">
 <div class="stick">
 <div class="bar"><b class="ttl">Biểu mẫu 1 – Báo cáo trường hợp bệnh</b>
-<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="loadDrive()" aria-label="Tải hồ sơ từ Google Drive">☁ Tải<span class="lg"> hồ sơ</span> từ Drive</button><button class="alt" onclick="openSheet()" aria-label="Mở Google Sheet lưu thông tin">📄 Sheet</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button></span></span></div>
+<span class="btns"><button onclick="saveRec()" aria-label="Lưu hồ sơ">💾 Lưu<span class="lg"> hồ sơ</span></button><button class="alt" onclick="newForm()" aria-label="Hồ sơ mới">＋ <span class="lg">Hồ sơ </span>mới</button><button class="alt" onclick="openList()" aria-label="Danh sách hồ sơ">📋 <span class="lg">Danh sách </span>(<span id="cnt2">0</span>)</button><button class="alt" onclick="loadDrive()" aria-label="Tải hồ sơ từ Google Drive">☁ Tải<span class="lg"> hồ sơ</span> từ Drive</button><button class="alt" onclick="document.body.classList.remove('batch');window.print()" aria-label="In">🖨 In</button><button class="alt mbtn" onclick="toggleMenu()" aria-label="Thêm chức năng">⋯ Khác</button><span class="menu" id="menu" onclick="closeMenu()"><button class="alt" onclick="cloneRec()">⧉ Nhân bản</button><button class="alt" onclick="$('imp').click()">⬆ Nhập từ Excel</button><button class="alt" onclick="$('gsd').showModal()">📥 Google Sheet</button><button class="alt" onclick="tplXlsx()">⬇ File Excel mẫu</button></span></span></div>
 <input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden>
 <div id="msg" class="msg" role="status"></div>
 </div>
@@ -257,7 +257,10 @@ function doPost(e) {
     const fo = getFolder_();
     // 1) Ghi/cập nhật dòng trong Google Sheet (dữ liệu chính, sửa tại chỗ, có lịch sử phiên bản)
     let sheetError = '', sheetUrl = '';
-    try { if (p.sheet) sheetUrl = saveRow_(p.sheet); } catch (err) { sheetError = String(err); }
+    try {
+      if (p.sheets &amp;&amp; p.sheets.length) sheetUrl = saveRows_(p.sheets); // nhập hàng loạt
+      else if (p.sheet) sheetUrl = saveRows_([p.sheet]);
+    } catch (err) { sheetError = String(err); }
     // 2) File Word: tạo file mới TRƯỚC, thành công rồi mới bỏ file cũ vào thùng rác
     (p.files || []).forEach(f =&gt; {
       const old = [];
@@ -318,44 +321,80 @@ function ensureColumns_(sh, header) {
   }
   return cols;
 }
-function saveRow_(s) {
+// Ghi nhiều dòng một lần: đọc dữ liệu hiện có, cập nhật/thêm theo khóa trong bộ nhớ, rồi ghi lại một lượt (nhanh, không bị quá thời gian)
+function saveRows_(items) {
   const sh = getSheet_();
-  const cols = ensureColumns_(sh, s.header);
-  const kc = cols.indexOf(KEY_COL) + 1;
+  const cols = ensureColumns_(sh, items[0].header);
+  const kc = cols.indexOf(KEY_COL);
   const last = sh.getLastRow();
-  let at = 0;
-  if (last &gt; 1) {
-    const keys = sh.getRange(2, kc, last - 1, 1).getValues();
-    for (let i = 0; i &lt; keys.length; i++) if (String(keys[i][0]) === s.key) { at = i + 2; break; }
-  }
-  const isNew = !at;
-  if (isNew) at = last + 1;
-  const val = {};
-  s.header.forEach((h, i) =&gt; val[h] = s.row[i] == null ? '' : String(s.row[i]));
-  const rg = sh.getRange(at, 1, 1, cols.length);
-  const cur = isNew ? [] : rg.getValues()[0]; // giữ nguyên cột lạ do người dùng tự thêm
+  const data = last &gt; 1 ? sh.getRange(2, 1, last - 1, cols.length).getValues() : [];
+  const idx = {};
+  data.forEach((r, i) =&gt; { idx[String(r[kc])] = i; });
+  items.forEach(s =&gt; {
+    const val = {};
+    s.header.forEach((h, i) =&gt; val[h] = s.row[i] == null ? '' : String(s.row[i]));
+    let i = idx[s.key];
+    if (i === undefined) { data.push(cols.map(() =&gt; '')); i = data.length - 1; idx[s.key] = i; }
+    cols.forEach((h, c) =&gt; { if (h in val) data[i][c] = val[h]; }); // giữ nguyên cột lạ do người dùng tự thêm
+  });
+  const rg = sh.getRange(2, 1, data.length, cols.length);
   rg.setNumberFormat('@');
-  rg.setValues([cols.map((h, i) =&gt; (h in val) ? val[h] : (cur[i] === undefined ? '' : cur[i]))]);
+  rg.setValues(data);
   SpreadsheetApp.flush();
   return sh.getParent().getUrl() + '#gid=' + sh.getSheetId();
 }
 
-// ===== (Tùy chọn) Sao lưu Google Sheet mỗi đêm, giữ 30 bản gần nhất =====
-// Chạy hàm installBackupTrigger MỘT lần trong trình soạn thảo Apps Script để bật.
+// ===== TỰ ĐỘNG SAO LƯU: chụp Google Sheet thành file Excel mỗi lần vào thư mục BACKUP =====
+// Cấu trúc trên Drive:
+//   Báo cáo trường hợp bệnh
+//   ├── Thông tin báo cáo trường hợp bệnh   (Google Sheet = dữ liệu hiện tại)
+//   └── BACKUP
+//       ├── 2026-09-30_0800.xlsx
+//       ├── 2026-09-30_1200.xlsx
+//       └── 2026-09-30_1700.xlsx
+// Bật lịch tự động: chạy hàm installBackupTrigger MỘT lần trong trình soạn thảo (sao lưu lúc 8h, 12h, 17h).
+const BACKUP_FOLDER = 'BACKUP';
+const KEEP_BACKUPS = 120;      // giữ 120 bản mới nhất (khoảng 40 ngày nếu 3 bản/ngày), bản cũ hơn vào thùng rác
+const TZ = 'Asia/Ho_Chi_Minh';
+const BACKUP_HOURS = [8, 12, 17];
+
 function installBackupTrigger() {
-  ScriptApp.getProjectTriggers().filter(t =&gt; t.getHandlerFunction() === 'backupDaily').forEach(t =&gt; ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('backupDaily').timeBased().everyDays(1).atHour(2).create();
+  ScriptApp.getProjectTriggers()
+    .filter(t =&gt; ['backupNow', 'backupDaily'].indexOf(t.getHandlerFunction()) &gt;= 0)
+    .forEach(t =&gt; ScriptApp.deleteTrigger(t));
+  BACKUP_HOURS.forEach(h =&gt; ScriptApp.newTrigger('backupNow').timeBased().everyDays(1).atHour(h).inTimezone(TZ).create());
 }
-function backupDaily() {
-  const fo = getFolder_(), it = fo.getFilesByName(SHEET_FILE);
-  if (!it.hasNext()) return;
-  const bi = fo.getFoldersByName('Sao lưu');
-  const bf = bi.hasNext() ? bi.next() : fo.createFolder('Sao lưu');
-  it.next().makeCopy(SHEET_FILE + ' ' + Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd'), bf);
-  const files = [], all = bf.getFiles();
-  while (all.hasNext()) files.push(all.next());
-  files.sort((a, b) =&gt; b.getDateCreated() - a.getDateCreated());
-  files.slice(30).forEach(f =&gt; f.setTrashed(true));
+
+// Chạy tay để sao lưu ngay; cũng là hàm mà lịch tự động gọi
+function backupNow() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000); // không sao lưu giữa chừng lúc có người đang lưu hồ sơ
+  try {
+    const fo = getFolder_(), it = fo.getFilesByName(SHEET_FILE);
+    if (!it.hasNext()) return 'Chưa có Google Sheet để sao lưu.';
+    const file = it.next();
+    const props = PropertiesService.getScriptProperties();
+    const last = Number(props.getProperty('LAST_BACKUP') || 0);
+    if (last &amp;&amp; file.getLastUpdated().getTime() &lt;= last) return 'Không có thay đổi từ lần sao lưu trước – bỏ qua.';
+    const startedAt = Date.now();
+    const res = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + file.getId() + '/export?format=xlsx', {
+      headers: {Authorization: 'Bearer ' + ScriptApp.getOAuthToken()},
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) throw new Error('Không xuất được file Excel để sao lưu (mã ' + res.getResponseCode() + ')');
+    const name = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HHmm') + '.xlsx';
+    const bi = fo.getFoldersByName(BACKUP_FOLDER);
+    const bf = bi.hasNext() ? bi.next() : fo.createFolder(BACKUP_FOLDER);
+    bf.createFile(res.getBlob().setName(name));   // luôn tạo file mới, không ghi đè bản nào
+    props.setProperty('LAST_BACKUP', String(startedAt));
+    const all = [], fs = bf.getFiles();
+    while (fs.hasNext()) all.push(fs.next());
+    all.sort((a, b) =&gt; b.getDateCreated() - a.getDateCreated());
+    all.slice(KEEP_BACKUPS).forEach(f =&gt; f.setTrashed(true));
+    return 'Đã sao lưu ' + name;
+  } finally {
+    try { lock.releaseLock(); } catch (x) {}
+  }
 }
 
 function out(o) {
@@ -516,6 +555,7 @@ function setData(o){F.reset();setTimeout(growAll,0);[...F.elements].forEach(e=>{
  else e.value=o[n]||''})}
 function saveRec(){const bad=[...document.querySelectorAll('.dt')].find(e=>T(e.value)&&!pd(e.value));if(bad){bad.focus();msg('Ngày không hợp lệ – hãy nhập dạng dd/mm/yyyy (hoặc gõ liền 150390).',1);return}
  const d=getData();if(!d.hoten.trim()){msg('Vui lòng nhập họ tên bệnh nhân.',1);return}
+ if(!T(d.ma)){const e0=document.querySelector('[name=ma0]');if(e0){e0.scrollIntoView({block:'center'});e0.focus()}msg('Chưa có mã bệnh nhân – hãy nhập mã bệnh nhân rồi mới lưu được.',1);return}
  d.id=cur||uid();const st=upsert(d);cur=d.id;rememberDefaults(d);persist();render();
  msg(st==='dup'?'Hồ sơ trùng đã được ghi đè.':st==='upd'?'Đã cập nhật hồ sơ.':'Đã lưu hồ sơ.');exportOnSave(d)}
 const sel=new Set();let vis=[];const nq=t=>slug(t).toLowerCase();
@@ -694,7 +734,8 @@ async function wordBuf(list){list=[].concat(list);const D=docx,W=8676,G=723,FT='
  return await (await D.Packer.toBlob(doc)).arrayBuffer()}
 /* ---- Cấu hình lưu trữ & Google Drive ---- */
 const CK='bctb_cfg_v1',DRIVE_URL='https://script.google.com/macros/s/AKfycbxCDRb6fEHZPLQsqcUoCcb4WqcSPoF9qLc74aSCQ3iNNOYW0eS8HB7Au0ERzUOKZlSQBg/exec';let cfg={drv:true,url:DRIVE_URL};
-try{const sv=JSON.parse(localStorage.getItem(CK)||'{}');if(typeof sv.drv==='boolean')cfg.drv=sv.drv;if(/^https:\/\/script\.google\.com\//.test(sv.url||''))cfg.url=sv.url}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem(CK)||'{}');if(typeof sv.drv==='boolean')cfg.drv=sv.drv;}catch(e){}
+try{if(localStorage.getItem('bctb_drive_for')!==DRIVE_URL){localStorage.removeItem('bctb_sheet_url');localStorage.setItem('bctb_drive_for',DRIVE_URL)}}catch(e){}
 $('cDrv').checked=cfg.drv;$('cUrl').value=cfg.url;
 function saveCfg(){cfg={drv:$('cDrv').checked,url:/^https:\/\/script\.google\.com\//.test(T($('cUrl').value))?T($('cUrl').value):DRIVE_URL};$('cUrl').value=cfg.url;
  try{localStorage.setItem(CK,JSON.stringify(cfg))}catch(e){}
@@ -703,14 +744,24 @@ const b64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0
 const SK='bctb_sheet_url';
 function SU(u){try{localStorage.setItem(SK,u)}catch(e){}}
 function msgLink(t,url,label){const m=$('msg');m.textContent=t+' ';const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.textContent=label;a.style.cssText='font-weight:bold;color:var(--accent)';m.appendChild(a);m.className='msg show';clearTimeout(msg.t);msg.t=setTimeout(()=>m.className='msg',20000)}
-async function openSheet(){let u='';try{u=localStorage.getItem(SK)||''}catch(e){}
- if(u){window.open(u,'_blank');msgLink('Google Sheet lưu thông tin:',u,'📄 Mở lại nếu chưa thấy trang mới');return}
- if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ trong trang.',1);return}
- msg('Đang lấy link Google Sheet…');
- try{const j=await (await fetch(cfg.url+(cfg.url.includes('?')?'&':'?')+'action=link')).json();
-  if(j.ok&&j.sheetUrl){SU(j.sheetUrl);msgLink('Google Sheet lưu thông tin:',j.sheetUrl,'📄 Mở Google Sheet');window.open(j.sheetUrl,'_blank')}
-  else msg('Chưa có Google Sheet – hãy bấm Lưu hồ sơ một lần (sau khi cập nhật Apps Script mới) rồi thử lại.',1)}
- catch(e){msg('Không lấy được link. Hãy cập nhật mã Apps Script mới và triển khai lại, rồi mở trang trực tiếp trên máy.',1)}}
+/* Nhập Excel xong thì tự lưu lên Google Sheet (chia lô 100 dòng) */
+async function autoImport(t,w){const base=sumTxt(t,w),L=t.list||[];
+ if(!L.length)return;
+ if(!cfg.drv){msg(base+' (Gửi Google Drive đang tắt nên chưa lưu lên Drive.)',1);return}
+ if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' Chưa có link Google Drive hợp lệ để tự lưu.',1);return}
+ const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc'],stamp=new Date().toLocaleString('vi-VN'),
+  items=L.map(d=>{const key=dk(d);return{header:hdr,key,row:[...toRow(d),key,d.thang||nowYM(),stamp]}});
+ let ok=0,err='',url='';
+ for(let i=0;i<items.length;i+=100){
+  msg(base+` Đang tự động lưu lên Google Drive… ${Math.min(i+100,items.length)}/${items.length}`);
+  try{const j=await (await fetch(cfg.url,{method:'POST',body:JSON.stringify({sheets:items.slice(i,i+100)})})).json();
+   if(!j.ok||j.sheetError){err=j.error||j.sheetError;break}
+   ok=Math.min(i+100,items.length);url=j.sheetUrl||url}
+  catch(e){err='không kết nối được tới Google Drive';break}}
+ if(url)SU(url);
+ if(err)msg(base+` Đã tự lưu ${ok}/${items.length} hồ sơ; dừng vì lỗi: ${err}. Bạn có thể nhập lại file để lưu tiếp.`,1);
+ else if(url)msgLink(base+` Đã tự động lưu ${ok} hồ sơ lên Google Sheet.`,url,'📄 Mở Google Sheet lưu thông tin');
+ else msg(base+` Đã tự động lưu ${ok} hồ sơ lên Google Drive.`)}
 async function toDrive(files,sheet){
  if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg('Chưa có link Google Drive hợp lệ trong trang.',1);return}
  msg('Đang gửi lên Google Drive…');
@@ -752,12 +803,13 @@ function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A
 function expXlsx(){if(!recs.length){msg('Chưa có hồ sơ nào để lưu.',1);return}
  saveBook(book(null,byMonth()),'bao-cao-benh-tong-hop.xlsx')}
 /* ---- Nhập dữ liệu: dùng chung cho Excel, dán từ Google Sheet, link Google Sheet ---- */
-function ingest(rows,th,w){let n=0,u=0,skip=0;const H=T(COLS[0][0]).toLowerCase();
+function ingest(rows,th,w){let n=0,u=0,skip=0,nomc=0;const list=[];
  rows.forEach((r,i)=>{if(r.every(c=>T(c)===''))return;if(i===0&&/^họ và tên/.test(T(r[0]).toLowerCase()))return;
   const o=fromRow(r,w);if(/^\(VÍ DỤ\)/.test(o.hoten))return;if(!o.hoten){skip++;return}
-  o.id=uid();o.thang=th||nowYM();upsert(o)==='new'?n++:u++});return{n,u,skip}}
-function report(t,w){persist();render();
- msg(`Đã nhập ${t.n} hồ sơ mới`+(t.u?`, ghi đè ${t.u} hồ sơ trùng`:'')+(t.skip?`, bỏ qua ${t.skip} dòng thiếu họ tên`:'')+(w.length?`, ${w.length} ô ngày không hợp lệ đã để trống`:'')+'.',t.skip||w.length)}
+  if(!T(o.ma)){nomc++;return}
+  o.id=uid();o.thang=th||nowYM();upsert(o)==='new'?n++:u++;list.push(o)});return{n,u,skip,nomc,list}}
+function sumTxt(t,w){return `Đã nhập ${t.n} hồ sơ mới`+(t.u?`, ghi đè ${t.u} hồ sơ trùng`:'')+(t.skip?`, bỏ qua ${t.skip} dòng thiếu họ tên`:'')+(t.nomc?`, bỏ qua ${t.nomc} dòng chưa có mã bệnh nhân`:'')+(w.length?`, ${w.length} ô ngày không hợp lệ đã để trống`:'')+'.'}
+function report(t,w){persist();render();msg(sumTxt(t,w),t.skip||t.nomc||w.length)}
 function parseDSV(t,d){const rows=[];let r=[],c='',q=false;t=t.replace(/\r\n?/g,'\n');
  for(let i=0;i<t.length;i++){const ch=t[i];
   if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
@@ -770,17 +822,20 @@ async function loadDrive(){
  try{const r=await fetch(cfg.url+(cfg.url.includes('?')?'&':'?')+'action=get');j=await r.json()}
  catch(e){msg('Không đọc được dữ liệu từ Drive. Hãy cập nhật mã Apps Script mới, triển khai lại, và mở trang trực tiếp trên máy.',1);return}
  if(!j||!j.ok||!j.rows){msg('Google Drive báo: '+((j&&j.error)||'không có dữ liệu'),1);return}
- const H=(j.header||[]).map(T),ix=COLS.map(c=>H.indexOf(c[0])),im=H.indexOf('Tháng'),w=[],t={n:0,u:0,skip:0},grp={};
- j.rows.forEach(r=>{const th=/^\d{4}-\d{2}$/.test(T(r[im]))?T(r[im]):nowYM();(grp[th]=grp[th]||[]).push(ix.map(k=>k<0?'':r[k]))});
- Object.keys(grp).sort().forEach(th=>{const x=ingest(grp[th],th,w);t.n+=x.n;t.u+=x.u;t.skip+=x.skip});
+ const w=[],t={n:0,u:0,skip:0,nomc:0,list:[]};ingestTable([j.header||[],...j.rows],nowYM(),w,t);
  report(t,w)}
-function importWb(wb){const w=[],t={n:0,u:0,skip:0};
-  wb.SheetNames.filter(x=>x!=='Hướng dẫn').forEach(sn=>{const m=/^(\d{2})-(\d{4})$/.exec(sn),
-   r=ingest(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}).slice(1),m?m[2]+'-'+m[1]:nowYM(),w);t.n+=r.n;t.u+=r.u;t.skip+=r.skip});
-  report(t,w)}
+function ingestTable(all,defTh,w,t){const H=(all[0]||[]).map(T);
+ if(!H.includes(COLS[0][0])){const x=ingest(all.slice(1),defTh,w);t.n+=x.n;t.u+=x.u;t.skip+=x.skip;t.nomc+=x.nomc;t.list.push(...x.list);return}
+ const ix=COLS.map(c=>H.indexOf(c[0])),im=H.indexOf('Tháng'),grp={};
+ all.slice(1).forEach(r=>{const th=/^\d{4}-\d{2}$/.test(T(r[im]))?T(r[im]):defTh;(grp[th]=grp[th]||[]).push(ix.map(k=>k<0?'':r[k]))});
+ Object.keys(grp).sort().forEach(th=>{const x=ingest(grp[th],th,w);t.n+=x.n;t.u+=x.u;t.skip+=x.skip;t.nomc+=x.nomc;t.list.push(...x.list)})}
+function importWb(wb){const w=[],t={n:0,u:0,skip:0,nomc:0,list:[]};
+ wb.SheetNames.filter(x=>x!=='Hướng dẫn').forEach(sn=>{const m=/^(\d{2})-(\d{4})$/.exec(sn);
+  ingestTable(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''}),m?m[2]+'-'+m[1]:nowYM(),w,t)});
+ report(t,w);return{t,w}}
 $('imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
  if(typeof XLSX==='undefined'){msg('Chưa tải được thư viện Excel.',1);return}
- try{importWb(XLSX.read(await f.arrayBuffer(),{type:'array'}))}
+ try{const r=importWb(XLSX.read(await f.arrayBuffer(),{type:'array'}));await autoImport(r.t,r.w)}
  catch(err){msg('Không đọc được file Excel này.',1)}};
 function pasteImport(){const tx=$('gpaste').value;if(!T(tx)){msg('Hãy dán dữ liệu đã copy từ Google Sheet vào ô trống.',1);return}
  const rows=parseDSV(tx,'\t'),w=[];report(ingest(rows,nowYM(),w),w);$('gpaste').value='';$('gsd').close()}
