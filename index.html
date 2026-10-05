@@ -218,7 +218,7 @@ p.sm{margin:4px 0 0}
 <div class="selbar"><span class="sm">Đã chọn <b id="sc">0</b> hồ sơ</span>
 <button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button></div>
 <div style="max-height:56vh;overflow:auto;margin-top:8px"><table id="lt"></table></div>
-<p class="sm" id="ln"></p><div style="text-align:right"><button onclick="$('lst').close()">Đóng</button></div></dialog>
+<p class="sm" id="lmsg" style="min-height:1.3em;font-weight:bold"></p><p class="sm" id="ln"></p><div style="text-align:right"><button onclick="$('lst').close()">Đóng</button></div></dialog>
 <dialog id="gsd" style="max-width:min(600px,96vw);width:96vw"><h3>Nhập từ Google Sheet</h3>
 <p class="sm"><b>Cách 1 – Copy & dán (dễ nhất):</b> trong Google Sheet, quét chọn các dòng cần nhập (có hoặc không kèm dòng tiêu đề), nhấn Ctrl+C rồi dán vào ô dưới đây. Các cột phải theo đúng thứ tự của <b>File Excel mẫu</b>.</p>
 <textarea id="gpaste" rows="5" style="height:110px;overflow:auto;resize:vertical" placeholder="Dán dữ liệu vào đây (Ctrl+V)…"></textarea>
@@ -240,28 +240,36 @@ p.sm{margin:4px 0 0}
 <li>Cấp quyền truy cập Drive khi được hỏi, rồi sao chép <b>URL ứng dụng web</b> dán vào ô trên.</li></ol>
 <textarea id="gs" readonly rows="20" style="font:11px/1.35 monospace;height:340px;resize:vertical;overflow:auto;white-space:pre">const FOLDER = 'Báo cáo trường hợp bệnh';
 const SHEET_FILE = 'Thông tin báo cáo trường hợp bệnh'; // Google Sheet = nơi lưu dữ liệu chính
-const SHEET_TAB = 'Lưu thông tin';
+const LEGACY_TAB = 'Lưu thông tin';                      // tab cũ (một tab chung) - tự chuyển sang tab theo tháng
 const KEY_COL = 'Mã hồ sơ (khóa)';
+const MONTH_TAB = /^\d{2}-\d{4}$/;                       // tên tab theo tháng: MM-YYYY (lấy theo Ngày nhập viện)
+const TZ = 'Asia/Ho_Chi_Minh';
 
 function getFolder_() {
   const it = DriveApp.getFoldersByName(FOLDER);
   return it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER);
 }
 
-// ===== LƯU: trang HTML gửi lên 1 dòng dữ liệu + file Word =====
+// ===== LƯU: trang HTML gửi lên dòng dữ liệu (+ file Word nếu có) =====
 function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000); // xếp hàng: nhiều người lưu cùng lúc vẫn không ghi đè nhau
     const p = JSON.parse(e.postData.contents);
     const fo = getFolder_();
-    // 1) Ghi/cập nhật dòng trong Google Sheet (dữ liệu chính, sửa tại chỗ, có lịch sử phiên bản)
-    let sheetError = '', sheetUrl = '', info = {};
+    // 1) Ghi/cập nhật dòng trong Google Sheet (tab theo tháng nhập viện; cùng mã bệnh nhân thì ghi đè)
+    let sheetError = '', sheetUrl = '', info = {}, deleted = 0;
     try {
       if (p.sheets &amp;&amp; p.sheets.length) info = saveRows_(p.sheets); // nhập hàng loạt
       else if (p.sheet) info = saveRows_([p.sheet]);
       sheetUrl = info.url || '';
+      if (p.deleteKeys &amp;&amp; p.deleteKeys.length) deleted = deleteRows_(p.deleteKeys); // xóa hồ sơ khỏi Sheet
     } catch (err) { sheetError = String(err); }
+    // 1b) Xóa file Word của hồ sơ đã xóa (vào thùng rác)
+    (p.trashFiles || []).forEach(name =&gt; {
+      const tf = fo.getFilesByName(name);
+      while (tf.hasNext()) tf.next().setTrashed(true);
+    });
     // 2) File Word: tạo file mới TRƯỚC, thành công rồi mới bỏ file cũ vào thùng rác
     (p.files || []).forEach(f =&gt; {
       const old = [];
@@ -271,7 +279,8 @@ function doPost(e) {
       old.forEach(x =&gt; x.setTrashed(true));
     });
     return out({ok: true, url: fo.getUrl(), sheetUrl: sheetUrl, sheetError: sheetError,
-      sheetRow: info.row || 0, sheetAdded: info.added || 0, sheetUpdated: info.updated || 0, sheetRemoved: info.removed || 0});
+      sheetRow: info.row || 0, sheetTab: info.tab || '', sheetAdded: info.added || 0, sheetUpdated: info.updated || 0,
+      sheetRemoved: info.removed || 0, sheetMoved: info.moved || 0, deleted: deleted});
   } catch (err) {
     return out({ok: false, error: String(err)});
   } finally {
@@ -279,7 +288,7 @@ function doPost(e) {
   }
 }
 
-// ===== ĐỌC: ?action=get -&gt; toàn bộ dữ liệu từ Google Sheet; ?action=link -&gt; đường link =====
+// ===== ĐỌC: ?action=get -&gt; toàn bộ hồ sơ (gộp các tab tháng); ?action=link -&gt; đường link =====
 function doGet(e) {
   try {
     const fo = getFolder_();
@@ -289,25 +298,43 @@ function doGet(e) {
       return out({ok: true, folderUrl: fo.getUrl(), sheetUrl: it.hasNext() ? it.next().getUrl() : ''});
     }
     if (!it.hasNext()) return out({ok: false, error: 'Chưa có Google Sheet "' + SHEET_FILE + '" – hãy lưu một hồ sơ trước.'});
-    const sh = SpreadsheetApp.open(it.next()).getSheetByName(SHEET_TAB);
-    if (!sh || sh.getLastRow() &lt; 2) return out({ok: false, error: 'Google Sheet chưa có hồ sơ nào.'});
-    const vals = sh.getDataRange().getDisplayValues();
-    return out({ok: true, header: vals[0], rows: vals.slice(1)});
+    const ss = SpreadsheetApp.open(it.next());
+    let tabs = ss.getSheets().filter(sh =&gt; MONTH_TAB.test(sh.getName()) &amp;&amp; sh.getLastRow() &gt; 1);
+    if (!tabs.length) { // chưa chuyển sang tab tháng: đọc tab cũ
+      const old = ss.getSheetByName(LEGACY_TAB);
+      if (old &amp;&amp; old.getLastRow() &gt; 1) tabs = [old];
+    }
+    if (!tabs.length) return out({ok: false, error: 'Google Sheet chưa có hồ sơ nào.'});
+    tabs.sort((a, b) =&gt; ymOf_(a.getName()) &lt; ymOf_(b.getName()) ? -1 : 1);
+    const header = [], parts = [];
+    tabs.forEach(sh =&gt; {
+      const v = sh.getDataRange().getDisplayValues();
+      v[0].forEach(h =&gt; { if (h !== '' &amp;&amp; header.indexOf(h) &lt; 0) header.push(h); });
+      parts.push(v);
+    });
+    const rows = [];
+    parts.forEach(v =&gt; {
+      const map = header.map(h =&gt; v[0].indexOf(h));
+      v.slice(1).forEach(r =&gt; { if (r.some(x =&gt; x !== '')) rows.push(map.map(i =&gt; i &lt; 0 ? '' : r[i])); });
+    });
+    return out({ok: true, header: header, rows: rows});
   } catch (err) { return out({ok: false, error: String(err)}); }
 }
 
-// ===== Google Sheet: thêm dòng mới hoặc cập nhật dòng cùng khóa =====
-function getSheet_() {
-  const fo = getFolder_();
-  const it = fo.getFilesByName(SHEET_FILE);
-  let ss;
-  if (it.hasNext()) ss = SpreadsheetApp.open(it.next());
-  else { ss = SpreadsheetApp.create(SHEET_FILE); DriveApp.getFileById(ss.getId()).moveTo(fo); }
-  let sh = ss.getSheetByName(SHEET_TAB);
-  if (!sh) { sh = ss.getSheets()[0]; sh.setName(SHEET_TAB); }
-  return sh;
+// ===== Google Sheet: mỗi tháng một tab (MM-YYYY, theo Ngày nhập viện) =====
+function ymOf_(name) { return name.slice(3) + '-' + name.slice(0, 2); }          // '09-2026' -&gt; '2026-09'
+function monthTab_(m) {                                                           // '2026-09' -&gt; '09-2026'
+  const x = /^(\d{4})-(\d{2})$/.exec(String(m || ''));
+  return x ? x[2] + '-' + x[1] : Utilities.formatDate(new Date(), TZ, 'MM-yyyy');
 }
-// Bảo đảm sheet có đủ các cột (thêm cột mới ở cuối nếu thiếu), trả về danh sách tên cột của sheet
+function getSpreadsheet_() {
+  const fo = getFolder_(), it = fo.getFilesByName(SHEET_FILE);
+  if (it.hasNext()) return SpreadsheetApp.open(it.next());
+  const ss = SpreadsheetApp.create(SHEET_FILE);
+  DriveApp.getFileById(ss.getId()).moveTo(fo);
+  return ss;
+}
+// Bảo đảm tab có đủ các cột (thêm cột mới ở cuối nếu thiếu), trả về danh sách tên cột của tab
 function ensureColumns_(sh, header) {
   const lc = sh.getLastColumn();
   let cols = lc ? sh.getRange(1, 1, 1, lc).getValues()[0].map(String) : [];
@@ -323,47 +350,157 @@ function ensureColumns_(sh, header) {
   }
   return cols;
 }
-// Ghi nhiều dòng một lần: đọc dữ liệu hiện có, cập nhật/thêm theo khóa trong bộ nhớ, rồi ghi lại một lượt.
-// Mỗi mục có: header, row, key (khóa mới) và oldKeys (các khóa cũ của cùng hồ sơ, ví dụ trước khi có mã bệnh nhân).
-// Nếu khóa mới chưa có mà khóa cũ có -&gt; dùng lại dòng cũ (đổi khóa), không tạo dòng mới.
-// Nếu cả hai cùng có -&gt; gộp vào dòng khóa mới và xóa dòng cũ.
-function saveRows_(items) {
-  const sh = getSheet_();
-  const cols = ensureColumns_(sh, items[0].header);
-  const kc = cols.indexOf(KEY_COL);
+// Mở (hoặc tạo) một tab tháng và nạp dữ liệu vào bộ nhớ
+function openTab_(ss, name, header, tabs) {
+  if (tabs[name]) return tabs[name];
+  let sh = ss.getSheetByName(name), created = false;
+  if (!sh) { sh = ss.insertSheet(name); created = true; }
+  const cols = ensureColumns_(sh, header);
   const last = sh.getLastRow();
-  let data = last &gt; 1 ? sh.getRange(2, 1, last - 1, cols.length).getValues() : [];
-  const idx = {}, del = {};
-  data.forEach((r, i) =&gt; { if (String(r[kc]) !== '') idx[String(r[kc])] = i; });
-  let added = 0, updated = 0;
+  const vals = last &gt; 1 ? sh.getRange(2, 1, last - 1, cols.length).getValues() : [];
+  tabs[name] = {sh: sh, cols: cols, kc: cols.indexOf(KEY_COL), created: created, dirty: created, rows: vals.map(v =&gt; ({v: v, del: false}))};
+  return tabs[name];
+}
+function flushTab_(t) {
+  if (!t.dirty) return;
+  const live = t.rows.filter(r =&gt; !r.del), removed = t.rows.length - live.length;
+  if (live.length) {
+    const rg = t.sh.getRange(2, 1, live.length, t.cols.length);
+    rg.setNumberFormat('@');
+    rg.setValues(live.map(r =&gt; r.v));
+  }
+  if (removed) t.sh.getRange(2 + live.length, 1, removed, t.cols.length).clearContent();
+}
+// Chuyển dữ liệu từ tab cũ "Lưu thông tin" sang các tab tháng (làm một lần)
+function migrateLegacy_(ss) {
+  const old = ss.getSheetByName(LEGACY_TAB);
+  if (!old) return;
+  if (old.getLastRow() &gt;= 2) {
+    const lc = old.getLastColumn();
+    const oh = old.getRange(1, 1, 1, lc).getValues()[0].map(String);
+    const vals = old.getRange(2, 1, old.getLastRow() - 1, lc).getValues();
+    const iNv = oh.indexOf('Ngày nhập viện'), iTh = oh.indexOf('Tháng');
+    const groups = {}, tabs = {};
+    vals.forEach(v =&gt; {
+      if (v.every(x =&gt; String(x) === '')) return;
+      let m = '';
+      const x = iNv &gt;= 0 ? /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(v[iNv]).trim()) : null;
+      if (x) m = x[3] + '-' + ('0' + x[2]).slice(-2);
+      else if (iTh &gt;= 0 &amp;&amp; /^\d{4}-\d{2}$/.test(String(v[iTh]))) m = String(v[iTh]);
+      const name = monthTab_(m);
+      (groups[name] = groups[name] || []).push(v);
+    });
+    Object.keys(groups).forEach(name =&gt; {
+      const t = openTab_(ss, name, oh, tabs);
+      groups[name].forEach(v =&gt; {
+        const row = t.cols.map(h =&gt; { const j = oh.indexOf(h); return j &lt; 0 ? '' : v[j]; });
+        const ti = t.cols.indexOf('Tháng');
+        if (ti &gt;= 0) row[ti] = ymOf_(name);
+        t.rows.push({v: row, del: false});
+      });
+      t.dirty = true;
+    });
+    Object.keys(tabs).forEach(n =&gt; flushTab_(tabs[n]));
+  }
+  old.setName(LEGACY_TAB + ' (đã chuyển ' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd') + ')');
+}
+// Xóa các dòng có khóa nằm trong danh sách (ở tất cả các tab tháng)
+function deleteRows_(keys) {
+  const it = getFolder_().getFilesByName(SHEET_FILE);
+  if (!it.hasNext()) return 0;
+  const ss = SpreadsheetApp.open(it.next());
+  const set = {};
+  keys.forEach(k =&gt; { if (k) set[String(k)] = true; });
+  let n = 0;
+  ss.getSheets().forEach(sh =&gt; {
+    const nm = sh.getName();
+    if (!(MONTH_TAB.test(nm) || nm === LEGACY_TAB)) return;
+    const lc = sh.getLastColumn(), last = sh.getLastRow();
+    if (last &lt; 2 || !lc) return;
+    const cols = sh.getRange(1, 1, 1, lc).getValues()[0].map(String);
+    const kc = cols.indexOf(KEY_COL);
+    if (kc &lt; 0) return;
+    const vals = sh.getRange(2, 1, last - 1, lc).getValues();
+    const keep = vals.filter(r =&gt; !set[String(r[kc])]);
+    const removed = vals.length - keep.length;
+    if (!removed) return;
+    n += removed;
+    if (keep.length) {
+      const rg = sh.getRange(2, 1, keep.length, lc);
+      rg.setNumberFormat('@');
+      rg.setValues(keep);
+    }
+    sh.getRange(2 + keep.length, 1, removed, lc).clearContent();
+  });
+  SpreadsheetApp.flush();
+  return n;
+}
+// Ghi nhiều dòng một lần. Mỗi mục: header, row, key (khóa mới), oldKeys (khóa cũ của cùng hồ sơ), month ('yyyy-mm' theo Ngày nhập viện).
+//  - cùng khóa (mã bệnh nhân) ở bất kỳ tab nào -&gt; GHI ĐÈ dòng đó; nếu tháng đổi thì dòng được chuyển sang tab tháng mới
+//  - khóa mới chưa có mà khóa cũ có -&gt; dùng lại dòng cũ; cả hai cùng có -&gt; gộp và xóa dòng cũ
+function saveRows_(items) {
+  const ss = getSpreadsheet_();
+  migrateLegacy_(ss);
+  const header = items[0].header, tabs = {}, where = {};
+  ss.getSheets().forEach(sh =&gt; { if (MONTH_TAB.test(sh.getName())) openTab_(ss, sh.getName(), header, tabs); });
+  Object.keys(tabs).forEach(n =&gt; tabs[n].rows.forEach(r =&gt; {
+    const k = String(r.v[tabs[n].kc]);
+    if (k !== '') where[k] = {tab: tabs[n], row: r};
+  }));
+  let added = 0, updated = 0, removed = 0, moved = 0, lastRow = null, lastTab = null;
   items.forEach(s =&gt; {
     const val = {};
     s.header.forEach((h, i) =&gt; val[h] = s.row[i] == null ? '' : String(s.row[i]));
-    let i = idx[s.key];
-    const olds = (s.oldKeys || []).filter(k =&gt; k &amp;&amp; k !== s.key &amp;&amp; idx[k] !== undefined);
-    if (i === undefined) {
-      if (olds.length) { i = idx[olds[0]]; idx[s.key] = i; delete idx[olds[0]]; olds.shift(); updated++; }
-      else { data.push(cols.map(() =&gt; '')); i = data.length - 1; idx[s.key] = i; added++; }
-    } else updated++;
-    olds.forEach(k =&gt; { if (idx[k] !== i) del[idx[k]] = true; delete idx[k]; });
-    cols.forEach((h, c) =&gt; { if (h in val) data[i][c] = val[h]; }); // giữ nguyên cột lạ do người dùng tự thêm
+    const target = openTab_(ss, monthTab_(s.month), header, tabs);
+    const keys = [s.key].concat(s.oldKeys || []).filter(k =&gt; k);
+    let hit = null;
+    keys.forEach(k =&gt; {
+      const w = where[k];
+      if (!w) return;
+      if (!hit) hit = w;
+      else if (w.row !== hit.row) { w.row.del = true; w.tab.dirty = true; removed++; }
+    });
+    keys.forEach(k =&gt; delete where[k]);
+    let row;
+    if (!hit) {
+      row = {v: target.cols.map(() =&gt; ''), del: false};
+      target.rows.push(row);
+      added++;
+    } else if (hit.tab === target) {
+      row = hit.row;
+      updated++;
+    } else { // đổi tháng nhập viện -&gt; chuyển sang tab khác
+      row = {v: target.cols.map(() =&gt; ''), del: false};
+      hit.tab.cols.forEach((h, c) =&gt; { const j = target.cols.indexOf(h); if (j &gt;= 0) row.v[j] = hit.row.v[c]; });
+      hit.row.del = true; hit.tab.dirty = true;
+      target.rows.push(row);
+      updated++; moved++;
+    }
+    target.cols.forEach((h, c) =&gt; { if (h in val) row.v[c] = val[h]; }); // giữ nguyên cột lạ do người dùng tự thêm
+    target.dirty = true;
+    where[s.key] = {tab: target, row: row};
+    lastRow = row; lastTab = target;
   });
-  const removed = Object.keys(del).length;
-  if (removed) data = data.filter((_, i) =&gt; !del[i]);
-  const rg = sh.getRange(2, 1, data.length, cols.length);
-  rg.setNumberFormat('@');
-  rg.setValues(data);
-  if (removed) sh.getRange(2 + data.length, 1, removed, cols.length).clearContent();
+  Object.keys(tabs).forEach(n =&gt; flushTab_(tabs[n]));
+  // dọn tab trống mặc định và sắp xếp tab tháng theo thời gian
+  if (Object.keys(tabs).some(n =&gt; tabs[n].created)) {
+    ss.getSheets().forEach(sh =&gt; {
+      if (!MONTH_TAB.test(sh.getName()) &amp;&amp; sh.getLastRow() === 0 &amp;&amp; ss.getSheets().length &gt; 1) ss.deleteSheet(sh);
+    });
+    const names = ss.getSheets().map(sh =&gt; sh.getName()).filter(n =&gt; MONTH_TAB.test(n));
+    names.sort((a, b) =&gt; ymOf_(a) &lt; ymOf_(b) ? -1 : 1);
+    names.forEach((n, i) =&gt; { ss.setActiveSheet(ss.getSheetByName(n)); ss.moveActiveSheet(i + 1); });
+  }
   SpreadsheetApp.flush();
-  const lastKey = items[items.length - 1].key;
-  const row = data.findIndex(r =&gt; String(r[kc]) === lastKey) + 2;
-  return {url: sh.getParent().getUrl() + '#gid=' + sh.getSheetId(), row: row, added: added, updated: updated, removed: removed};
+  const live = lastTab.rows.filter(r =&gt; !r.del);
+  return {url: ss.getUrl() + '#gid=' + lastTab.sh.getSheetId(), row: live.indexOf(lastRow) + 2,
+    tab: lastTab.sh.getName(), added: added, updated: updated, removed: removed, moved: moved};
 }
 
-// ===== TỰ ĐỘNG SAO LƯU: chụp Google Sheet thành file Excel mỗi lần vào thư mục BACKUP =====
+// ===== TỰ ĐỘNG SAO LƯU: chụp Google Sheet (tất cả tab) thành file Excel vào thư mục BACKUP =====
 // Cấu trúc trên Drive:
 //   Báo cáo trường hợp bệnh
-//   ├── Thông tin báo cáo trường hợp bệnh   (Google Sheet = dữ liệu hiện tại)
+//   ├── Thông tin báo cáo trường hợp bệnh   (Google Sheet: mỗi tháng một tab 09-2026, 10-2026, ...)
 //   └── BACKUP
 //       ├── 2026-09-30_0800.xlsx
 //       ├── 2026-09-30_1200.xlsx
@@ -371,7 +508,6 @@ function saveRows_(items) {
 // Bật lịch tự động: chạy hàm installBackupTrigger MỘT lần trong trình soạn thảo (sao lưu lúc 8h, 12h, 17h).
 const BACKUP_FOLDER = 'BACKUP';
 const KEEP_BACKUPS = 120;      // giữ 120 bản mới nhất (khoảng 40 ngày nếu 3 bản/ngày), bản cũ hơn vào thùng rác
-const TZ = 'Asia/Ho_Chi_Minh';
 const BACKUP_HOURS = [8, 12, 17];
 
 function installBackupTrigger() {
@@ -623,8 +759,24 @@ function cloneRec(id){const src=id?recs.find(r=>r.id===id):(T(F.elements.hoten.v
  msg('Đã nhân bản – hãy nhập họ tên, mã và ngày sinh cho bệnh nhân mới.')}
 function openRec(id){const r=recs.find(x=>x.id===id);if(!r)return;setData(r);cur=id;render();scrollTo(0,0)}
 function two(b,fn){if(b.dataset.s!=='1'){const t=b.textContent;b.dataset.s='1';b.textContent='Chắc chắn?';setTimeout(()=>{b.dataset.s='';b.textContent=t},3000);return}fn()}
-function delRec(id,b){two(b,()=>{recs=recs.filter(r=>r.id!==id);if(cur===id)cur=null;persist();render()})}
-function clearAll(b){if(recs.length)two(b,()=>{recs=[];cur=null;persist();render();b.dataset.s='';b.textContent='Xóa tất cả'})}
+function lmsg(t,w){const e=$('lmsg');if(e){e.textContent=t;e.style.color=w?'#b45309':''}}
+const wordName=d=>'BaoCao_'+(slug(d.hoten)||'HoSo')+'_'+(d.ma||String(d.id).slice(-4))+'.docx';
+/* Xóa hồ sơ khỏi Google Sheet (mọi tab tháng) và đưa file Word tương ứng vào thùng rác */
+async function syncDelete(list){
+ const who=list.length===1?(list[0].hoten||list[0].ma):list.length+' hồ sơ',base=`Đã xóa ${who} khỏi Danh sách.`;
+ if(!list.length)return;
+ if(!cfg.drv){msg(base+' (Gửi Google Drive đang tắt nên chưa xóa trên Google Sheet.)',1);lmsg(base,1);return}
+ if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' Chưa có link Google Drive hợp lệ.',1);return}
+ const keys=[...new Set(list.flatMap(d=>{const k=dk(d);return[k,d.skey,...oldKeys(d,k)]}).filter(Boolean))],
+  trash=[...new Set(list.map(wordName))];
+ msg(base+' Đang xóa trên Google Sheet…');lmsg(base+' Đang xóa trên Google Sheet…');
+ try{const j=await (await fetch(cfg.url,{method:'POST',body:JSON.stringify({deleteKeys:keys,trashFiles:trash})})).json();
+  if(!j.ok||j.sheetError){const e=j.error||j.sheetError;const t=base+` Chưa xóa được trên Google Sheet: ${e}. Lần tải từ Drive sau hồ sơ có thể hiện lại.`;msg(t,1);lmsg(t,1);return}
+  const t=base+(j.deleted?` Đã xóa ${j.deleted} dòng trên Google Sheet và file Word tương ứng.`:' Không thấy hồ sơ này trên Google Sheet (có thể chưa từng được lưu lên Drive).');
+  msg(t);lmsg(t)}
+ catch(e){const t=base+' Không kết nối được tới Google Drive nên chưa xóa trên Google Sheet; lần tải từ Drive sau hồ sơ có thể hiện lại.';msg(t,1);lmsg(t,1)}}
+function delRec(id,b){two(b,()=>{const r=recs.find(x=>x.id===id);recs=recs.filter(x=>x.id!==id);if(cur===id)cur=null;persist();render();if(r)syncDelete([r])})}
+function clearAll(b){if(!recs.length)return;if(cfg.drv&&b.dataset.s!=='1')msg('Xóa tất cả sẽ xóa cả các hồ sơ này trên Google Sheet – bấm lần nữa để xác nhận.',1);two(b,()=>{const all=recs.slice();recs=[];cur=null;persist();render();b.dataset.s='';b.textContent='Xóa tất cả';syncDelete(all)})}
 function render(){$('cnt').textContent=recs.length;$('cnt2').textContent=recs.length;renderList();$('tb').innerHTML='<tr><th>#</th><th>Họ tên</th><th>Mã BN</th><th>Bệnh</th><th></th></tr>'+(recs.length?recs.map((r,i)=>`<tr${r.id===cur?' class="on"':''}><td>${i+1}</td><td>${esc(r.hoten)}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td class="a"><button class="alt" onclick="openRec('${r.id}')">Mở</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`).join(''):'<tr><td colspan="5">Chưa có hồ sơ. Nhập tay rồi bấm "Lưu hồ sơ", hoặc nhập từ file Excel.</td></tr>')}
 /* ---- Excel ---- */
 const split=v=>T(v).split(/[;\n]+/).flatMap(t=>/^[\d\s,]+$/.test(t)?t.split(','):[t]).map(T).filter(Boolean);
@@ -669,10 +821,11 @@ function byMonth(L=recs){const g={};L.forEach(r=>{const k=/^\d{4}-\d{2}$/.test(r
  return Object.keys(g).sort().map(k=>[k.slice(5)+'-'+k.slice(0,4),[COLS.map(c=>c[0]),...g[k].map(toRow)]])}
 /* Khóa trùng: mã bệnh nhân; nếu chưa có mã thì họ tên + ngày sinh */
 const dk=r=>T(r.ma)?'m'+T(r.ma):(T(r.ngaysinh)?'t'+slug(r.hoten)+'|'+r.ngaysinh:'');
+const monthOf=(d,fb)=>/^\d{4}-\d{2}-\d{2}$/.test(T(d.ngaynv))?d.ngaynv.slice(0,7):(/^\d{4}-\d{2}$/.test(fb||'')?fb:nowYM());
 function upsert(d){const oid=d.id,i=recs.findIndex(r=>r.id===oid),k=dk(d),j=k?recs.findIndex(r=>r.id!==oid&&dk(r)===k):-1;
- if(j>=0){const o=recs[j];d.id=o.id;d.thang=o.thang||nowYM();recs[j]=d;if(i>=0)recs.splice(i,1);return'dup'}
- if(i>=0){d.thang=recs[i].thang||nowYM();recs[i]=d;return'upd'}
- d.thang=d.thang||nowYM();recs.push(d);return'new'}
+ if(j>=0){const o=recs[j];d.id=o.id;d.thang=monthOf(d,o.thang);recs[j]=d;if(i>=0)recs.splice(i,1);return'dup'}
+ if(i>=0){d.thang=monthOf(d,recs[i].thang);recs[i]=d;return'upd'}
+ d.thang=monthOf(d,d.thang);recs.push(d);return'new'}
 const XM='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',WM='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 async function saveFile(name,buf,mime){
  let dl=null;
@@ -774,7 +927,7 @@ async function autoImport(t,w){const base=sumTxt(t,w),L=t.list||[];
  if(!cfg.drv){msg(base+' (Gửi Google Drive đang tắt nên chưa lưu lên Drive.)',1);return}
  if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' Chưa có link Google Drive hợp lệ để tự lưu.',1);return}
  const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc'],stamp=new Date().toLocaleString('vi-VN'),
-  items=L.map(d=>{const key=dk(d);return{header:hdr,key,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),stamp]}});
+  items=L.map(d=>{const key=dk(d);return{header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),stamp]}});
  let ok=0,err='',url='',sa=0,su=0;
  for(let i=0;i<items.length;i+=100){
   msg(base+` Đang tự động lưu lên Google Drive… ${Math.min(i+100,items.length)}/${items.length}`);
@@ -793,7 +946,7 @@ async function toDrive(files,sheet,rec,ctx){const nt=(ctx&&ctx.note?ctx.note+' '
  try{const j=await (await fetch(cfg.url,{method:'POST',body})).json();
   if(j.ok&&j.sheetUrl){SU(j.sheetUrl);if(!j.sheetError){if(rec){rec.skey=sheet.key;persist()}
    const ow=j.sheetRow&&!j.sheetAdded,
-    where=j.sheetRow?(j.sheetAdded?' – thêm mới ở dòng '+j.sheetRow:(st==='upd'?' – cập nhật dòng '+j.sheetRow:' – ĐÃ GHI ĐÈ dòng '+j.sheetRow+' (mã bệnh nhân đã có trên Google Sheet)'))+(j.sheetRemoved?', gộp '+j.sheetRemoved+' dòng trùng':''):'';
+    where=j.sheetRow?(j.sheetAdded?' – thêm mới ở sheet '+j.sheetTab+', dòng '+j.sheetRow:(st==='upd'?' – cập nhật sheet '+j.sheetTab+', dòng '+j.sheetRow:' – ĐÃ GHI ĐÈ sheet '+j.sheetTab+', dòng '+j.sheetRow+' (mã bệnh nhân đã có trên Google Sheet)'))+(j.sheetMoved?'; hồ sơ đã chuyển sang sheet '+j.sheetTab+' do đổi Ngày nhập viện':'')+(j.sheetRemoved?', gộp '+j.sheetRemoved+' dòng trùng':''):'';
    msgLink(nt+'Đã lưu lên Google Drive (Word và Google Sheet'+where+').',j.sheetUrl,'📄 Mở Google Sheet lưu thông tin',st==='dup'||(ow&&st!=='upd'));return}}
   msg(!j.ok?'Google Drive báo lỗi: '+j.error:j.sheetError?'Đã lưu file lên Drive nhưng chưa ghi được Google Sheet: '+j.sheetError+' (hãy cập nhật mã Apps Script mới và cấp quyền).':'Đã lưu lên Google Drive: file Word và dòng dữ liệu trong Google Sheet "Thông tin báo cáo trường hợp bệnh".',!j.ok||!!j.sheetError)}
  catch(e){try{await fetch(cfg.url,{method:'POST',body,mode:'no-cors'});msg('Đã gửi lên Google Drive (không xác nhận được kết quả – hãy kiểm tra thư mục trên Drive).')}
@@ -824,7 +977,7 @@ async function exportOnSave(d,note,st){
  try{if(typeof docx==='undefined')throw 0;wbuf=await wordBuf(d)}catch(e){fail.push('Word (chưa tải được thư viện, kiểm tra mạng)')}
  if(wbuf){done.push('Word');files.push({name:wn,mime:WM,buf:wbuf})}
  const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc'],key=dk(d)||('id:'+d.id),
-  sheet={header:hdr,key,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),new Date().toLocaleString('vi-VN')]};
+  sheet={header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),new Date().toLocaleString('vi-VN')]};
  if(cfg.drv){await toDrive(files,sheet,d,{note,st});return}
  msg((note||'')+' Đã lưu hồ sơ trên trình duyệt (gửi Google Drive đang tắt). '+(fail.length?'Không tạo được: '+fail.join('; ')+'.':''),fail.length>0);}
 function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
