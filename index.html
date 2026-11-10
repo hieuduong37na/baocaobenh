@@ -221,7 +221,7 @@ p.sm{margin:4px 0 0}
 <dialog id="lst" style="max-width:min(780px,96vw);width:96vw"><h3>Danh sách hồ sơ đã nhập</h3>
 <div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="lq" placeholder="Tìm theo họ tên, mã bệnh nhân, bệnh…" oninput="renderList()" style="flex:1 1 220px;width:auto"><select id="ld" onchange="renderList()" aria-label="Lọc theo ngày nhập"><option value="">Tất cả ngày nhập</option></select><select id="lg" onchange="renderList()" aria-label="Lọc theo trạng thái gửi"><option value="">Tất cả trạng thái</option><option value="0">Chưa gửi</option><option value="1">Đã gửi</option></select></div>
 <div class="selbar"><span class="sm">Đã chọn <b id="sc">0</b> hồ sơ</span>
-<button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button><button class="alt" id="bf" onclick="batchPdf()">⬇ PDF đã chọn</button></div>
+<button class="alt" id="bs" onclick="batchSend()">✉ Gửi đã chọn</button><button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button><button class="alt" id="bf" onclick="batchPdf()">⬇ PDF đã chọn</button></div>
 <p class="sm" id="st" style="margin:8px 0 0;font-weight:bold"></p><div style="max-height:56vh;overflow:auto;margin-top:4px"><table id="lt"></table></div>
 <p class="sm" id="lmsg" style="min-height:1.3em;font-weight:bold"></p><p class="sm" id="ln"></p><div style="text-align:right"><button onclick="$('lst').close()">Đóng</button></div></dialog>
 <dialog id="gsd" style="max-width:min(600px,96vw);width:96vw"><h3>Nhập từ Google Sheet</h3>
@@ -754,7 +754,7 @@ async function copyGs(){const t=$('gs');t.focus();t.select();let ok=false;
 function toggleMenu(){$('menu').classList.toggle('open')}
 function closeMenu(){$('menu').classList.remove('open')}
 document.addEventListener('click',e=>{if(!e.target.closest('.btns'))closeMenu()});
-function updSel(){const n=sel.size;$('sc').textContent=n;['bp','bx','bw','bf'].forEach(i=>$(i).disabled=!n);
+function updSel(){const n=sel.size;$('sc').textContent=n;['bs','bp','bx','bw','bf'].forEach(i=>$(i).disabled=!n);
  const a=$('ska');if(a){const k=vis.filter(id=>sel.has(id)).length;a.checked=vis.length>0&&k===vis.length;a.indeterminate=k>0&&k<vis.length}}
 function selTog(id,on){on?sel.add(id):sel.delete(id);updSel()}
 function selAll(on){vis.forEach(id=>on?sel.add(id):sel.delete(id));renderList()}
@@ -843,6 +843,26 @@ function batchPrint(){const L=selRecs();if(!L.length)return;$('pbatch').innerHTM
  document.body.classList.add('batch');setTimeout(()=>window.print(),250)}
 addEventListener('afterprint',()=>document.body.classList.remove('batch'));
 /* ---- Nút Gửi: chỉ đánh dấu đã gửi / chưa gửi để thống kê (không gửi email). Bấm lần nữa để bỏ đánh dấu ---- */
+/* ---- Gửi hàng loạt: đánh dấu ĐÃ GỬI cho các hồ sơ đã chọn (và cập nhật Google Sheet nếu đã bật) ---- */
+async function batchSend(){const L=selRecs();if(!L.length)return;
+ const todo=L.filter(r=>!r.gui),skip=L.length-todo.length;
+ if(!todo.length){msg('Cả '+L.length+' hồ sơ đã chọn đều đã được đánh dấu ĐÃ GỬI từ trước.',1);return}
+ const day=todayISO();todo.forEach(r=>r.gui=day);persist();render();
+ const base='Đã đánh dấu ĐÃ GỬI '+todo.length+' hồ sơ ('+dmy(day)+')'+(skip?', bỏ qua '+skip+' hồ sơ đã gửi trước đó':'')+'.';
+ if(!cfg.drv||!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' (Chưa đồng bộ lên Google Sheet vì gửi Drive đang tắt.)',1);return}
+ const syn=todo.filter(r=>r.skey),no=todo.length-syn.length;
+ if(!syn.length){msg(base+' Các hồ sơ này chưa lưu lên Google Sheet – hãy lưu hồ sơ lên Sheet để trạng thái được cập nhật.',1);return}
+ const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập','Ngày gửi'],stamp=new Date().toLocaleString('vi-VN'),
+  items=syn.map(r=>{const key=dk(r)||('id:'+r.id);return{header:hdr,key,month:r.thang,oldKeys:oldKeys(r,key),row:[...toRow(r),key,r.thang||nowYM(),stamp,vn(r.nhap),vn(r.gui)]}});
+ let ok=0,err='';
+ for(let i=0;i<items.length;i+=100){
+  msg(base+' Đang cập nhật Google Sheet… '+Math.min(i+100,items.length)+'/'+items.length);
+  try{const j=await (await fetch(cfg.url,{method:'POST',body:JSON.stringify({sheets:items.slice(i,i+100)})})).json();
+   if(!j.ok||j.sheetError){err=j.error||j.sheetError;break}
+   ok=Math.min(i+100,items.length)}
+  catch(e){err='không kết nối được Google Drive';break}}
+ if(err)msg(base+' Mới cập nhật Google Sheet '+ok+'/'+items.length+' hồ sơ, dừng vì lỗi: '+err,1);
+ else msg(base+' Đã cập nhật Google Sheet cho '+ok+' hồ sơ'+(no?'; '+no+' hồ sơ chưa lưu lên Sheet nên chưa cập nhật':'')+'.',!!no)}
 async function sendRec(id,b){const r=recs.find(x=>x.id===id);if(!r)return;
  const was=!!r.gui,who=r.hoten||r.ma;r.gui=was?'':todayISO();persist();render();
  const base=was?'Đã bỏ đánh dấu gửi của '+who+'.':'Đã đánh dấu '+who+' là ĐÃ GỬI ('+dmy(r.gui)+').';
