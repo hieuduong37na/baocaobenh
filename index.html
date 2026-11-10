@@ -684,7 +684,13 @@ build('b24',L24,1,7);build('b48',L48,21,5);
 const ma=document.getElementById('ma');
 for(let i=0;i<10;i++){const e=document.createElement('input');e.type='text';e.maxLength=1;e.inputMode='numeric';e.name='ma'+i;e.setAttribute('form','f');
  e.oninput=()=>{if(e.value&&e.nextElementSibling)e.nextElementSibling.focus()};
- e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};ma.appendChild(e);}
+ e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&e.previousElementSibling)e.previousElementSibling.focus()};
+ /* Dán cả mã: lấy các chữ số trong nội dung dán, trải đều vào các ô (đủ 10 số thì luôn điền từ ô đầu) */
+ e.addEventListener('paste',ev=>{const t=((ev.clipboardData||window.clipboardData).getData('text')||'').replace(/\D/g,'');if(!t)return;ev.preventDefault();
+  const bx=[...ma.children],st=t.length>=10||t.length>10-i?0:i,dg=t.slice(0,10);
+  if(st===0)bx.forEach(b=>b.value='');dg.split('').forEach((c,k)=>{if(bx[st+k])bx[st+k].value=c});
+  const nx=bx[Math.min(st+dg.length,9)];if(nx)nx.focus()});
+ ma.appendChild(e);}
 function grow(e){e.style.height='auto';e.style.height=e.scrollHeight+'px';const p=e.nextElementSibling;if(p&&p.classList.contains('pv'))p.textContent=e.value}
 function growAll(){document.querySelectorAll('textarea.ag').forEach(grow)}
 document.querySelectorAll('textarea.ag').forEach(e=>{const pv=document.createElement('div');pv.className='pv'+(e.classList.contains('xk')?' xk':'');pv.textContent=e.value;e.after(pv)});
