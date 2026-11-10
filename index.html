@@ -206,8 +206,8 @@ p.sm{margin:4px 0 0}
 /* ===== Danh sách theo ngày nhập + nút Gửi ===== */
 #lst tr.gh td{background:var(--field);font-weight:bold;padding:7px 6px;border-bottom:1px solid var(--accent)}
 #lst td.a{white-space:normal;min-width:150px}#lst td.a button{margin:0 2px 3px 0}
-#ld{font:14px system-ui,sans-serif;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
-@media screen and (max-width:760px){#lst th:nth-child(7),#lst td:nth-child(7){display:none}#ld{width:100%}}
+#ld,#lg{font:14px system-ui,sans-serif;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--ink)}
+@media screen and (max-width:760px){#lst th:nth-child(7),#lst td:nth-child(7){display:none}#ld,#lg{width:100%}}
 </style>
 </head>
 <body>
@@ -219,10 +219,10 @@ p.sm{margin:4px 0 0}
 <div id="msg" class="msg" role="status"></div>
 </div>
 <dialog id="lst" style="max-width:min(780px,96vw);width:96vw"><h3>Danh sách hồ sơ đã nhập</h3>
-<div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="lq" placeholder="Tìm theo họ tên, mã bệnh nhân, bệnh…" oninput="renderList()" style="flex:1 1 220px;width:auto"><select id="ld" onchange="renderList()" aria-label="Lọc theo ngày nhập"><option value="">Tất cả ngày nhập</option></select></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="lq" placeholder="Tìm theo họ tên, mã bệnh nhân, bệnh…" oninput="renderList()" style="flex:1 1 220px;width:auto"><select id="ld" onchange="renderList()" aria-label="Lọc theo ngày nhập"><option value="">Tất cả ngày nhập</option></select><select id="lg" onchange="renderList()" aria-label="Lọc theo trạng thái gửi"><option value="">Tất cả trạng thái</option><option value="0">Chưa gửi</option><option value="1">Đã gửi</option></select></div>
 <div class="selbar"><span class="sm">Đã chọn <b id="sc">0</b> hồ sơ</span>
-<button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button></div>
-<div style="max-height:56vh;overflow:auto;margin-top:8px"><table id="lt"></table></div>
+<button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button><button class="alt" id="bf" onclick="batchPdf()">⬇ PDF đã chọn</button></div>
+<p class="sm" id="st" style="margin:8px 0 0;font-weight:bold"></p><div style="max-height:56vh;overflow:auto;margin-top:4px"><table id="lt"></table></div>
 <p class="sm" id="lmsg" style="min-height:1.3em;font-weight:bold"></p><p class="sm" id="ln"></p><div style="text-align:right"><button onclick="$('lst').close()">Đóng</button></div></dialog>
 <dialog id="gsd" style="max-width:min(600px,96vw);width:96vw"><h3>Nhập từ Google Sheet</h3>
 <p class="sm"><b>Cách 1 – Copy & dán (dễ nhất):</b> trong Google Sheet, quét chọn các dòng cần nhập (có hoặc không kèm dòng tiêu đề), nhấn Ctrl+C rồi dán vào ô dưới đây. Các cột phải theo đúng thứ tự của <b>File Excel mẫu</b>.</p>
@@ -669,6 +669,8 @@ function out(o) {
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script>
 const L24=["Bại liệt","Bạch hầu","Bệnh do liên cầu lợn","Cúm A(H5N1)","Cúm A(H7N9)","Dịch hạch","Ê-bô-la (Ebolla)","Lát-sa (Lassa)","Mác-bớt (Marburg)","Rubella (Rubeon)","Sốt Tây sông Nin","Sốt vàng","Sốt xuất huyết Dengue","Sởi","Tả","Tay - chân - miệng","Than","Viêm đường hô hấp Trung đông (MERS-CoV)","Viêm màng não do não mô cầu","Bệnh truyền nhiễm nguy hiểm mới nổi và bệnh mới phát sinh chưa rõ nguyên nhân"];
 const L48=["Dại","Ho gà","Liệt mềm cấp nghi bại liệt","Lao phổi","Sốt rét","Thương hàn","Uốn ván sơ sinh","Uốn ván khác","Viêm gan vi rút A","Viêm gan vi rút B","Viêm gan vi rút C","Viêm não Nhật Bản","Viêm não vi rút khác","Xoắn khuẩn vàng da (Leptospira)"];
@@ -729,23 +731,24 @@ function renderList(){const q=nq($('lq').value),th=r=>/^\d{4}-\d{2}$/.test(r.tha
  const ds=[...new Set(recs.map(r=>r.nhap||'').filter(Boolean))].sort().reverse(),sd=$('ld'),pv=sd.value,cn={};
  recs.forEach(r=>{const k=r.nhap||'';cn[k]=(cn[k]||0)+1});
  sd.innerHTML='<option value="">Tất cả ngày nhập</option>'+ds.map(x=>`<option value="${x}">${dmy(x)} (${cn[x]} hồ sơ)</option>`).join('');sd.value=ds.includes(pv)?pv:'';
- const f=sd.value,rows=recs.map((r,i)=>[r,i]).filter(([r])=>(!q||nq([r.hoten,r.ma,(r.benh||[]).join(' ')].join(' ')).includes(q))&&(!f||r.nhap===f))
+ const f=sd.value,base=recs.map((r,i)=>[r,i]).filter(([r])=>(!q||nq([r.hoten,r.ma,(r.benh||[]).join(' ')].join(' ')).includes(q))&&(!f||r.nhap===f)),ns=base.filter(([r])=>r.gui).length,sg=$('lg').value,rows=base.filter(([r])=>!sg||(sg==='1'?r.gui:!r.gui))
   .sort((x,y)=>(y[0].nhap||'').localeCompare(x[0].nhap||'')||y[1]-x[1]);
  vis=rows.map(([r])=>r.id);[...sel].forEach(id=>{if(!recs.some(r=>r.id===id))sel.delete(id)});
  let last=null,h='';
  rows.forEach(([r,i])=>{const k=r.nhap||'';
   if(k!==last){last=k;h+=`<tr class="gh"><td colspan="8">📅 ${k?'Ngày nhập '+dmy(k):'Chưa rõ ngày nhập'} – ${cn[k]} hồ sơ</td></tr>`}
-  h+=`<tr${r.id===cur?' class="on"':''}><td><input type="checkbox" ${sel.has(r.id)?'checked':''} onchange="selTog('${r.id}',this.checked)" aria-label="Chọn hồ sơ"></td><td>${i+1}</td><td>${esc(r.hoten)}${r.gui?`<br><span class="sm">✓ Đã gửi ${dmy(r.gui)}</span>`:''}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td>${dmy(r.nhap)}</td><td>${th(r)}</td><td class="a"><button onclick="sendRec('${r.id}',this)">${r.gui?'✉ Gửi lại':'✉ Gửi'}</button> <button class="alt" onclick="listOpen('${r.id}')">Sửa</button> <button class="alt" onclick="listPrint('${r.id}')">In</button> <button class="alt" onclick="$('lst').close();cloneRec('${r.id}')">Nhân bản</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`});
+  h+=`<tr${r.id===cur?' class="on"':''}><td><input type="checkbox" ${sel.has(r.id)?'checked':''} onchange="selTog('${r.id}',this.checked)" aria-label="Chọn hồ sơ"></td><td>${i+1}</td><td>${esc(r.hoten)}${r.gui?`<br><span class="sm">✓ Đã gửi ${dmy(r.gui)}</span>`:''}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td>${dmy(r.nhap)}</td><td>${th(r)}</td><td class="a"><button class="${r.gui?'alt':''}" onclick="sendRec('${r.id}',this)" title="${r.gui?'Bấm để bỏ đánh dấu đã gửi':'Đánh dấu đã gửi báo cáo'}">${r.gui?'✓ Đã gửi':'✉ Gửi'}</button> <button class="alt" onclick="listOpen('${r.id}')">Sửa</button> <button class="alt" onclick="listPrint('${r.id}')">In</button> <button class="alt" onclick="$('lst').close();cloneRec('${r.id}')">Nhân bản</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`});
  $('lt').innerHTML='<tr><th><input type="checkbox" id="ska" onchange="selAll(this.checked)" aria-label="Chọn tất cả"></th><th>#</th><th>Họ tên</th><th>Mã BN</th><th>Bệnh</th><th>Ngày nhập</th><th>Tháng</th><th></th></tr>'+(rows.length?h:'<tr><td colspan="8">'+(recs.length?'Không có hồ sơ khớp.':'Chưa có hồ sơ nào.')+'</td></tr>');
+ $('st').textContent='Thống kê gửi báo cáo: đã gửi '+ns+' – chưa gửi '+(base.length-ns)+' (tổng '+base.length+' hồ sơ'+(f?' của ngày '+dmy(f):'')+')';
  updSel();
- $('ln').textContent='Hiển thị '+rows.length+'/'+recs.length+' hồ sơ, nhóm theo ngày nhập (mới nhất ở trên). "✉ Gửi" gửi báo cáo của bệnh nhân đó; "Sửa" nạp hồ sơ vào biểu mẫu; "In" mở hộp thoại in.'}
+ $('ln').textContent='Hiển thị '+rows.length+'/'+recs.length+' hồ sơ, nhóm theo ngày nhập (mới nhất ở trên). "✉ Gửi" đánh dấu bệnh nhân đã được gửi báo cáo (bấm lại để bỏ); "Sửa" nạp hồ sơ vào biểu mẫu; "In" mở hộp thoại in.'}
 async function copyGs(){const t=$('gs');t.focus();t.select();let ok=false;
  try{await navigator.clipboard.writeText(t.value);ok=true}catch(e){try{ok=document.execCommand('copy')}catch(e2){}}
  msg(ok?'Đã sao chép đủ '+t.value.split('\n').length+' dòng mã – dán vào Apps Script (Ctrl+V).':'Không tự sao chép được – hãy bấm vào ô mã, Ctrl+A rồi Ctrl+C.',!ok)}
 function toggleMenu(){$('menu').classList.toggle('open')}
 function closeMenu(){$('menu').classList.remove('open')}
 document.addEventListener('click',e=>{if(!e.target.closest('.btns'))closeMenu()});
-function updSel(){const n=sel.size;$('sc').textContent=n;['bp','bx','bw'].forEach(i=>$(i).disabled=!n);
+function updSel(){const n=sel.size;$('sc').textContent=n;['bp','bx','bw','bf'].forEach(i=>$(i).disabled=!n);
  const a=$('ska');if(a){const k=vis.filter(id=>sel.has(id)).length;a.checked=vis.length>0&&k===vis.length;a.indeterminate=k>0&&k<vis.length}}
 function selTog(id,on){on?sel.add(id):sel.delete(id);updSel()}
 function selAll(on){vis.forEach(id=>on?sel.add(id):sel.delete(id));renderList()}
@@ -753,29 +756,38 @@ const selRecs=()=>recs.filter(r=>sel.has(r.id));
 function batchXls(){const L=selRecs();if(L.length)saveBook(book(null,byMonth(L)),'bao-cao-benh-da-chon-'+L.length+'-ho-so.xlsx')}
 async function batchWord(){const L=selRecs();if(!L.length)return;if(typeof docx==='undefined'){msg('Chưa tải được thư viện Word, kiểm tra mạng.',1);return}
  try{await saveFile('BaoCao_'+L.length+'_ho_so.docx',await wordBuf(L),WM);msg('Đã tải file Word gồm '+L.length+' hồ sơ (mỗi hồ sơ một trang).')}catch(e){msg('Không tạo được file Word: '+(e.message||e),1)}}
+/* ---- Xuất PDF (nhiều hồ sơ -> một file, mỗi hồ sơ một trang) ---- */
+function pdfPages(d,i){const S=v=>String(v==null||v===''?' ':v),
+ rows=fields(d).map(([k,v])=>k==='#'?[{text:v,colSpan:2,bold:true,fillColor:'#e8e8e8'},{}]:k==='*'?[{text:S(v),colSpan:2},{}]:[{text:k},{text:S(v)}]);
+ return[{text:'BÁO CÁO TRƯỜNG HỢP BỆNH',alignment:'center',bold:true,fontSize:15,margin:[0,0,0,8],pageBreak:i?'before':undefined},
+  {table:{widths:['32%','*'],body:rows,dontBreakRows:true},layout:{hLineColor:()=>'#000',vLineColor:()=>'#000',paddingTop:()=>2,paddingBottom:()=>2}},
+  {text:[{text:'Ngày '+(d.d||'…..')+' tháng '+(d.m||'…..')+' năm '+(d.y||'…….')+'\n'},{text:'THỦ TRƯỞNG ĐƠN VỊ',bold:true}],alignment:'right',margin:[0,14,0,0],unbreakable:true},
+  {text:'Nơi nhận: '+(d.noinhan||''),italics:true,margin:[0,8,0,0]}]}
+async function batchPdf(){const L=selRecs();if(!L.length)return;
+ if(typeof pdfMake==='undefined'){msg('Chưa tải được thư viện PDF, kiểm tra mạng.',1);return}
+ const b=$('bf');b.disabled=true;
+ try{const buf=await new Promise((ok,no)=>{try{pdfMake.createPdf({pageSize:'A4',pageMargins:[40,40,40,40],defaultStyle:{fontSize:10.5},content:L.flatMap(pdfPages),footer:(c,n)=>({text:c+'/'+n,alignment:'center',fontSize:8})}).getBuffer(ok)}catch(e){no(e)}});
+  await saveFile(L.length===1?wordName(L[0]).replace(/\.docx$/,'.pdf'):'BaoCao_'+L.length+'_ho_so.pdf',buf,'application/pdf');
+  msg('Đã xuất file PDF gồm '+L.length+' hồ sơ (mỗi hồ sơ một trang).')}
+ catch(e){msg('Không tạo được file PDF: '+(e.message||e),1)}
+ finally{b.disabled=!sel.size}}
 function batchPage(d,i,a){return'<section class="pg"><h2>BÁO CÁO TRƯỜNG HỢP BỆNH</h2><table>'+fields(d).map(([k,v])=>k==='#'?`<tr class="sc"><td colspan="2">${esc(v)}</td></tr>`:k==='*'?`<tr><td colspan="2" class="v">${esc(v)}</td></tr>`:`<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join('')+
  `</table><p class="sg">Ngày ….. tháng ….. năm …….<br><b>THỦ TRƯỞNG ĐƠN VỊ</b></p><p class="nn"><i>Nơi nhận: ${esc(d.noinhan||'')}</i></p></section>`}
 function batchPrint(){const L=selRecs();if(!L.length)return;$('pbatch').innerHTML=L.map(batchPage).join('');$('lst').close();
  document.body.classList.add('batch');setTimeout(()=>window.print(),250)}
 addEventListener('afterprint',()=>document.body.classList.remove('batch'));
-/* ---- Gửi báo cáo từng bệnh nhân: chia sẻ file Word (điện thoại: Zalo, Mail…) hoặc tải Word + mở thư email ---- */
+/* ---- Nút Gửi: chỉ đánh dấu đã gửi / chưa gửi để thống kê (không gửi email). Bấm lần nữa để bỏ đánh dấu ---- */
 async function sendRec(id,b){const r=recs.find(x=>x.id===id);if(!r)return;
- if(typeof docx==='undefined'){msg('Chưa tải được thư viện Word, kiểm tra mạng.',1);return}
- if(b)b.disabled=true;
- try{const name=wordName(r),buf=await wordBuf(r),file=new File([buf],name,{type:WM}),
-   title='Báo cáo trường hợp bệnh – '+(r.hoten||'')+(r.ma?' ('+r.ma+')':''),
-   text=['BÁO CÁO TRƯỜNG HỢP BỆNH','Bệnh nhân: '+(r.hoten||'')+(r.ma?' – Mã '+r.ma:''),'Bệnh: '+((r.benh||[]).join('; ')||'—'),'Ngày nhập viện: '+(dmy(r.ngaynv)||'—'),'Người báo cáo: '+([r.nguoibc,r.sdtbc].filter(Boolean).join(' – ')||'—'),'Đơn vị: '+(r.donvi||'—')].join('\n');
-  let how='';
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-   try{await navigator.share({files:[file],title,text});how='share'}
-   catch(e){if(e&&e.name==='AbortError'){msg('Đã hủy gửi báo cáo.');return}}}
-  if(!how){await saveFile(name,buf,WM);
-   const to=(T(r.noinhan).match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/)||[''])[0];
-   setTimeout(()=>{location.href='mailto:'+to+'?subject='+encodeURIComponent(title)+'&body='+encodeURIComponent(text+'\n\n(Đính kèm file Word: '+name+')')},500);how='mail'}
-  r.gui=todayISO();persist();render();
-  msg(how==='share'?'Đã gửi báo cáo của '+(r.hoten||r.ma)+'.':'Đã tải file Word và mở thư email cho '+(r.hoten||r.ma)+' – hãy đính kèm file '+name+' rồi bấm Gửi trong ứng dụng email.')}
- catch(e){msg('Không gửi được báo cáo: '+(e.message||e),1)}
- finally{if(b)b.disabled=false}}
+ const was=!!r.gui,who=r.hoten||r.ma;r.gui=was?'':todayISO();persist();render();
+ const base=was?'Đã bỏ đánh dấu gửi của '+who+'.':'Đã đánh dấu '+who+' là ĐÃ GỬI ('+dmy(r.gui)+').';
+ if(!cfg.drv||!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' (Chưa đồng bộ lên Google Sheet vì gửi Drive đang tắt.)',1);return}
+ if(!r.skey){msg(base+' Hồ sơ chưa lưu lên Google Sheet – bấm "Lưu hồ sơ" để trạng thái được lưu lên Sheet.',1);return}
+ msg(base+' Đang lưu lên Google Sheet…');
+ try{const key=dk(r)||('id:'+r.id),hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập','Ngày gửi'],
+   j=await (await fetch(cfg.url,{method:'POST',body:JSON.stringify({sheet:{header:hdr,key,month:r.thang,oldKeys:oldKeys(r,key),row:[...toRow(r),key,r.thang||nowYM(),new Date().toLocaleString('vi-VN'),vn(r.nhap),vn(r.gui)]}})})).json();
+  if(!j.ok||j.sheetError){msg(base+' Chưa lưu được lên Google Sheet: '+(j.error||j.sheetError),1);return}
+  msg(base+' Đã cập nhật trên Google Sheet.')}
+ catch(e){msg(base+' Không kết nối được Google Drive nên chưa lưu lên Sheet.',1)}}
 function openList(){$('lq').value='';renderList();$('lst').showModal()}
 function listOpen(id){$('lst').close();openRec(id)}
 function listPrint(id){$('lst').close();document.body.classList.remove('batch');openRec(id);setTimeout(()=>{growAll();window.print()},300)}
@@ -809,7 +821,7 @@ async function syncDelete(list){
  catch(e){const t=base+' Không kết nối được tới Google Drive nên chưa xóa trên Google Sheet; lần tải từ Drive sau hồ sơ có thể hiện lại.';msg(t,1);lmsg(t,1)}}
 function delRec(id,b){two(b,()=>{const r=recs.find(x=>x.id===id);recs=recs.filter(x=>x.id!==id);if(cur===id)cur=null;persist();render();if(r)syncDelete([r])})}
 function clearAll(b){if(!recs.length)return;if(cfg.drv&&b.dataset.s!=='1')msg('Xóa tất cả sẽ xóa cả các hồ sơ này trên Google Sheet – bấm lần nữa để xác nhận.',1);two(b,()=>{const all=recs.slice();recs=[];cur=null;persist();render();b.dataset.s='';b.textContent='Xóa tất cả';syncDelete(all)})}
-function render(){$('cnt').textContent=recs.length;$('cnt2').textContent=recs.length;renderList();$('tb').innerHTML='<tr><th>#</th><th>Họ tên</th><th>Mã BN</th><th>Bệnh</th><th>Ngày nhập</th><th></th></tr>'+(recs.length?recs.map((r,i)=>`<tr${r.id===cur?' class="on"':''}><td>${i+1}</td><td>${esc(r.hoten)}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td>${dmy(r.nhap)}</td><td class="a"><button onclick="sendRec('${r.id}',this)">${r.gui?'✉ Gửi lại':'✉ Gửi'}</button> <button class="alt" onclick="openRec('${r.id}')">Mở</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`).join(''):'<tr><td colspan="6">Chưa có hồ sơ. Nhập tay rồi bấm "Lưu hồ sơ", hoặc nhập từ file Excel.</td></tr>')}
+function render(){$('cnt').textContent=recs.length;$('cnt2').textContent=recs.length;renderList();$('tb').innerHTML='<tr><th>#</th><th>Họ tên</th><th>Mã BN</th><th>Bệnh</th><th>Ngày nhập</th><th></th></tr>'+(recs.length?recs.map((r,i)=>`<tr${r.id===cur?' class="on"':''}><td>${i+1}</td><td>${esc(r.hoten)}</td><td>${esc(r.ma)}</td><td>${esc((r.benh||[]).join('; '))}</td><td>${dmy(r.nhap)}</td><td class="a"><button class="${r.gui?'alt':''}" onclick="sendRec('${r.id}',this)" title="${r.gui?'Bấm để bỏ đánh dấu đã gửi':'Đánh dấu đã gửi báo cáo'}">${r.gui?'✓ Đã gửi':'✉ Gửi'}</button> <button class="alt" onclick="openRec('${r.id}')">Mở</button> <button class="alt" onclick="delRec('${r.id}',this)">Xóa</button></td></tr>`).join(''):'<tr><td colspan="6">Chưa có hồ sơ. Nhập tay rồi bấm "Lưu hồ sơ", hoặc nhập từ file Excel.</td></tr>')}
 /* ---- Excel ---- */
 const split=v=>T(v).split(/[;\n]+/).flatMap(t=>/^[\d\s,]+$/.test(t)?t.split(','):[t]).map(T).filter(Boolean);
 const pick=(v,o)=>{const t=T(v).toLowerCase();return o.find(x=>x.toLowerCase()===t)||''};
@@ -958,8 +970,8 @@ async function autoImport(t,w){const base=sumTxt(t,w),L=t.list||[];
  if(!L.length)return;
  if(!cfg.drv){msg(base+' (Gửi Google Drive đang tắt nên chưa lưu lên Drive.)',1);return}
  if(!/^https:\/\/script\.google\.com\//.test(cfg.url)){msg(base+' Chưa có link Google Drive hợp lệ để tự lưu.',1);return}
- const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập'],stamp=new Date().toLocaleString('vi-VN'),
-  items=L.map(d=>{const key=dk(d);return{header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),stamp,vn(d.nhap)]}});
+ const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập','Ngày gửi'],stamp=new Date().toLocaleString('vi-VN'),
+  items=L.map(d=>{const key=dk(d);return{header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),stamp,vn(d.nhap),vn(d.gui)]}});
  let ok=0,err='',url='',sa=0,su=0;
  for(let i=0;i<items.length;i+=100){
   msg(base+` Đang tự động lưu lên Google Drive… ${Math.min(i+100,items.length)}/${items.length}`);
@@ -1008,8 +1020,8 @@ async function exportOnSave(d,note,st){
  /* Word và Excel tạo độc lập: thiếu thư viện nào chỉ bỏ file đó */
  try{if(typeof docx==='undefined')throw 0;wbuf=await wordBuf(d)}catch(e){fail.push('Word (chưa tải được thư viện, kiểm tra mạng)')}
  if(wbuf){done.push('Word');files.push({name:wn,mime:WM,buf:wbuf})}
- const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập'],key=dk(d)||('id:'+d.id),
-  sheet={header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),new Date().toLocaleString('vi-VN'),vn(d.nhap)]};
+ const hdr=[...COLS.map(c=>c[0]),'Mã hồ sơ (khóa)','Tháng','Cập nhật lúc','Ngày nhập','Ngày gửi'],key=dk(d)||('id:'+d.id),
+  sheet={header:hdr,key,month:d.thang,oldKeys:oldKeys(d,key),row:[...toRow(d),key,d.thang||nowYM(),new Date().toLocaleString('vi-VN'),vn(d.nhap),vn(d.gui)]};
  if(cfg.drv){await toDrive(files,sheet,d,{note,st});return}
  msg((note||'')+' Đã lưu hồ sơ trên trình duyệt (gửi Google Drive đang tắt). '+(fail.length?'Không tạo được: '+fail.join('; ')+'.':''),fail.length>0);}
 function tplXlsx(){saveBook(book([COLS.map(c=>c[0]),['(VÍ DỤ) NGUYỄN VĂN A','0123456789','15/03/1990','Nam','Kinh','Công nhân','12','Nguyễn Trãi','Tổ 3','Phường 1','TP. Hồ Chí Minh','0900000000','Công ty ABC','13; 14','Có','2','Lâm sàng','Có','Test nhanh; PCR','Dương tính','10/09/2026','12/09/2026','','Điều trị nội trú','Đi từ vùng có dịch, tiếp xúc người bệnh','Trần Thị B','0911111111','Trạm Y tế phường 1','b@example.com']]),'mau-nhap-bao-cao-benh.xlsx')}
@@ -1020,7 +1032,7 @@ function ingest(rows,th,w){let n=0,u=0,skip=0,nomc=0;const list=[];
  rows.forEach((r,i)=>{if(r.every(c=>T(c)===''))return;if(i===0&&/^họ và tên/.test(T(r[0]).toLowerCase()))return;
   const o=fromRow(r,w);if(/^\(VÍ DỤ\)/.test(o.hoten))return;if(!o.hoten){skip++;return}
   if(!T(o.ma)){nomc++;return}
-  o.nhap=d8(r[COLS.length])||d8(r[COLS.length+1])||todayISO();o.id=uid();o.thang=th||nowYM();upsert(o)==='new'?n++:u++;list.push(o)});return{n,u,skip,nomc,list}}
+  o.nhap=d8(r[COLS.length])||d8(r[COLS.length+1])||todayISO();o.gui=d8(r[COLS.length+2]);o.id=uid();o.thang=th||nowYM();upsert(o)==='new'?n++:u++;list.push(o)});return{n,u,skip,nomc,list}}
 function sumTxt(t,w){return `Đã nhập ${t.n} hồ sơ mới`+(t.u?`, ⚠ GHI ĐÈ ${t.u} hồ sơ cùng mã bệnh nhân`:'')+(t.skip?`, bỏ qua ${t.skip} dòng thiếu họ tên`:'')+(t.nomc?`, bỏ qua ${t.nomc} dòng chưa có mã bệnh nhân`:'')+(w.length?`, ${w.length} ô ngày không hợp lệ đã để trống`:'')+'.'}
 function report(t,w){persist();render();msg(sumTxt(t,w),t.u||t.skip||t.nomc||w.length)}
 function parseDSV(t,d){const rows=[];let r=[],c='',q=false;t=t.replace(/\r\n?/g,'\n');
@@ -1042,7 +1054,7 @@ async function loadDrive(auto){
  if(t.n+t.u&&!auto)openList();return true}
 function ingestTable(all,defTh,w,t){const H=(all[0]||[]).map(T);
  if(!H.includes(COLS[0][0])){const x=ingest(all.slice(1),defTh,w);t.n+=x.n;t.u+=x.u;t.skip+=x.skip;t.nomc+=x.nomc;t.list.push(...x.list);return}
- const ix=COLS.map(c=>H.indexOf(c[0])),im=H.indexOf('Tháng'),ie=[H.indexOf('Ngày nhập'),H.indexOf('Cập nhật lúc')],grp={};
+ const ix=COLS.map(c=>H.indexOf(c[0])),im=H.indexOf('Tháng'),ie=[H.indexOf('Ngày nhập'),H.indexOf('Cập nhật lúc'),H.indexOf('Ngày gửi')],grp={};
  all.slice(1).forEach(r=>{const th=/^\d{4}-\d{2}$/.test(T(r[im]))?T(r[im]):defTh;(grp[th]=grp[th]||[]).push([...ix.map(k=>k<0?'':r[k]),...ie.map(k=>k<0?'':r[k])])});
  Object.keys(grp).sort().forEach(th=>{const x=ingest(grp[th],th,w);t.n+=x.n;t.u+=x.u;t.skip+=x.skip;t.nomc+=x.nomc;t.list.push(...x.list)})}
 function importWb(wb){const w=[],t={n:0,u:0,skip:0,nomc:0,list:[]};
