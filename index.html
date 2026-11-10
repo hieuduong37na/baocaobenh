@@ -763,18 +763,59 @@ function batchXls(){const L=selRecs();if(L.length)saveBook(book(null,byMonth(L))
 async function batchWord(){const L=selRecs();if(!L.length)return;if(typeof docx==='undefined'){msg('Chưa tải được thư viện Word, kiểm tra mạng.',1);return}
  try{await saveFile('BaoCao_'+L.length+'_ho_so.docx',await wordBuf(L),WM);msg('Đã tải file Word gồm '+L.length+' hồ sơ (mỗi hồ sơ một trang).')}catch(e){msg('Không tạo được file Word: '+(e.message||e),1)}}
 /* ---- Xuất PDF (nhiều hồ sơ -> một file, mỗi hồ sơ một trang) ---- */
-function pdfPages(d,i){const S=v=>String(v==null||v===''?' ':v),
- rows=fields(d).map(([k,v])=>k==='#'?[{text:v,colSpan:2,bold:true,fillColor:'#e8e8e8'},{}]:k==='*'?[{text:S(v),colSpan:2},{}]:[{text:k},{text:S(v)}]);
- return[{text:'BÁO CÁO TRƯỜNG HỢP BỆNH',alignment:'center',bold:true,fontSize:15,margin:[0,0,0,8],pageBreak:i?'before':undefined},
-  {table:{widths:['32%','*'],body:rows,dontBreakRows:true},layout:{hLineColor:()=>'#000',vLineColor:()=>'#000',paddingTop:()=>2,paddingBottom:()=>2}},
-  {text:[{text:'Ngày '+(d.d||'…..')+' tháng '+(d.m||'…..')+' năm '+(d.y||'…….')+'\n'},{text:'THỦ TRƯỞNG ĐƠN VỊ',bold:true}],alignment:'right',margin:[0,14,0,0],unbreakable:true},
-  {text:'Nơi nhận: '+(d.noinhan||''),italics:true,margin:[0,8,0,0]}]}
+function pdfPages(d,i){const T=t=>String(t==null?'':t),L=t=>({text:T(t)}),V=t=>({text:T(t),bold:true}),B=t=>({text:T(t),bold:true}),
+ P=(r,m)=>({text:[].concat(r),margin:m||[0,0,0,2]}),has=n=>(d.benh||[]).includes(ALL[n-1]),xn=x=>(d.xn||[]).includes(x),
+ bx=on=>({width:9,canvas:[{type:'rect',x:0,y:1,w:8,h:8,lineWidth:.8,lineColor:'#000'},...(on?[{type:'line',x1:1.8,y1:2.8,x2:7.2,y2:8.2,lineWidth:1.1,lineColor:'#000'},{type:'line',x1:7.2,y1:2.8,x2:1.8,y2:8.2,lineWidth:1.1,lineColor:'#000'}]:[])]}),
+ CB=(on,t,r)=>({columns:[bx(on),{width:'*',text:[L(t),...(r||[])]}],columnGap:4,margin:[0,0,0,2]}),
+ CBR=it=>({columns:it.flatMap(([on,t])=>[bx(on),{width:'auto',text:T(t)},{width:6,text:''}]),columnGap:3,margin:[0,0,0,2]}),
+ boxes=(v,n,bw)=>({table:{widths:Array(n).fill(bw),heights:17,body:[T(v).replace(/\D/g,'').slice(0,n).padEnd(n,' ').split('').map(c=>({text:c,bold:true,alignment:'center',margin:[0,3,0,0]}))]},
+  layout:{hLineWidth:()=>.6,vLineWidth:()=>.6,paddingLeft:()=>0,paddingRight:()=>0,paddingTop:()=>0,paddingBottom:()=>0},margin:[0,2,0,3]}),
+ dc=(lab,v)=>[P(L(lab),[0,0,0,0]),boxes(dmy(v),8,15)],
+ row=(...c)=>c.flatMap(([st,sp])=>[{stack:st,colSpan:sp},...Array(sp-1).fill({})]),
+ col=(a,b)=>[Array.from({length:b-a+1},(_,k)=>CB(has(a+k),ALL[a+k-1])),4],
+ LY={hLineWidth:()=>.6,vLineWidth:()=>.6,hLineColor:()=>'#000',vLineColor:()=>'#000',paddingLeft:()=>5,paddingRight:()=>5,paddingTop:()=>3,paddingBottom:()=>1},
+ W12=Array(12).fill('*'),
+ p1=[row([[P(B('THÔNG TIN BỆNH NHÂN'))],12]),
+  row([[P(L('Họ và tên bệnh nhân (CHỮ IN):')),P(V(T(d.hoten).toUpperCase()))],7],[[P(L('Mã bệnh nhân:'),[0,0,0,0]),boxes(d.ma,10,16)],5]),
+  row([[P(L('Ngày, tháng, năm sinh:'),[0,0,0,0]),boxes(dmy(d.ngaysinh),8,11)],3],[[P(L('Giới tính:')),CB(d.gioitinh==='Nam','Nam'),CB(d.gioitinh==='Nữ','Nữ')],2],
+   [[P(L('Dân tộc:')),CB(d.dantoc==='Kinh','Kinh'),CB(d.dantoc==='Khác','Khác: ',[V(d.dantockhac)])],3],[[P(L('Nghề nghiệp:')),P(V(d.nghe))],4]),
+  row([[P(L('Nơi ở hiện nay:')),P([L('Số nhà: '),V(d.sonha),L('    Đường/phố: '),V(d.duong),L('    Tổ/xóm/ấp/bản: '),V(d.to)]),P([L('Phường/xã/thị trấn: '),V(d.phuong),L('    Tỉnh/thành phố: '),V(d.tinh)])],9],[[P(L('Điện thoại liên lạc:')),P(V(d.sdt))],3]),
+  row([[P([L('Nơi làm việc/học tập: '),V(d.noilam)])],12]),
+  row([[P(B('CHẨN ĐOÁN BỆNH (LÂM SÀNG HOẶC XÁC ĐỊNH PHÒNG THÍ NGHIỆM)'),[0,0,0,4]),P(B('BỆNH PHẢI BÁO CÁO NGAY SAU KHI CÓ CHẨN ĐOÁN, KHÔNG MUỘN QUÁ 24 GIỜ'))],12]),
+  row(col(1,7),col(8,14),col(15,20)),
+  row([[P([L('BỆNH PHẢI BÁO CÁO TRONG VÒNG '),B('48 GIỜ'),L(' SAU KHI CÓ CHẨN ĐOÁN')])],12]),
+  row(col(21,25),col(26,30),col(31,34))],
+ p2=[row([[P([B('Tình trạng tiêm chủng: '),L('Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc')]),CBR([[d.tiem==='Có','Có - Số lần tiêm, uống ['+(d.solan||'   ')+']'],[d.tiem==='Không','Không'],[d.tiem==='Không rõ','Không rõ']])],12]),
+  row([[P(B('Phân loại chẩn đoán:')),CBR([[d.phanloai==='Lâm sàng','Lâm sàng']]),CB(d.phanloai==='Xác định phòng xét nghiệm','Xác định phòng xét nghiệm'),
+    P(B('Lấy mẫu xét nghiệm chẩn đoán:'),[0,6,0,2]),CBR([[d.laymau==='Có','Có'],[d.laymau==='Không','Không']]),
+    P(B('Loại xét nghiệm:'),[0,6,0,2]),CBR([[xn('Test nhanh'),'Test nhanh'],[xn('MAC ELISA'),'MAC ELISA']]),CBR([[xn('PCR'),'PCR']]),CB(xn('Khác'),'Khác: ',[V(xn('Khác')?d.xnkhac:'')]),
+    P(B('Kết quả xét nghiệm chẩn đoán:'),[0,6,0,2]),CB(d.ketqua==='Dương tính','Dương tính'),CB(d.ketqua==='Âm tính','Âm tính'),CB(d.ketqua==='Chưa có kết quả','Chưa có kết quả')],5],
+   [[...dc('Ngày khởi phát:',d.ngaykp),P(L('Ngày nhập viện:'),[0,6,0,0]),boxes(dmy(d.ngaynv),8,15),P(L('Ngày ra viện/chuyển viện/tử vong:'),[0,6,0,0]),boxes(dmy(d.ngayrv),8,15)],4],
+   [[P(B('Tình trạng:')),...['Điều trị ngoại trú','Điều trị nội trú','Ra viện','Chuyển viện','Tử vong'].map(t=>CB(d.tinhtrang===t,t)),CB(d.tinhtrang==='Khác','Khác ',[V(d.tinhtrang==='Khác'?d.ttkhac:'')])],3]),
+  row([[{text:' ',margin:[0,8,0,8]}],12]),
+  row([[P([B('TIỀN SỬ DỊCH TỄ '),{text:'(thời gian đi lại trước khi mắc bệnh, tiếp xúc người bệnh/ trường hợp nghi ngờ, tiếp xúc động vật/gia cầm, nơi tiếp xúc)',italics:true}])],12]),
+  row([[{columns:[{width:'*',text:V(d.dichte)},{width:1,canvas:[{type:'rect',x:0,y:0,w:1,h:52,color:'#fff',lineWidth:0}]}]}],12]),
+  row([[P(B('THÔNG TIN NGƯỜI BÁO CÁO'))],12]),
+  row([[P([L('Tên người báo cáo: '),V(d.nguoibc),L('            Ký tên')])],8],[[P([L('Điện thoại: '),V(d.sdtbc)])],4]),
+  row([[P([L('Đơn vị công tác: '),V(d.donvi)])],8],[[P([L('Email: '),V(d.email)])],4])];
+ return[{text:'Biểu mẫu 1 - Báo cáo trường hợp bệnh',bold:true,fontSize:9.5,margin:[0,0,0,3],pageBreak:'before'},
+  {text:'BÁO CÁO TRƯỜNG HỢP BỆNH',alignment:'center',fontSize:12,margin:[0,0,0,6]},
+  {table:{widths:W12,body:p1,dontBreakRows:true},layout:LY},
+  {table:{widths:W12,body:p2,dontBreakRows:true},layout:LY,pageBreak:'before'},
+  {columns:[{width:'*',text:[{text:'Nơi nhận: ',bold:true,italics:true},V(d.noinhan)]},{width:'*',alignment:'center',text:[L('Ngày '+(d.d||'…..')+' tháng '+(d.m||'…..')+' năm '+(d.y||'…….')+'\n'),B('THỦ TRƯỞNG ĐƠN VỊ')]}],margin:[0,8,0,0],unbreakable:true},
+  {text:[{text:'Nguồn',bold:true,fontSize:9.5},{text:': Thông tư 54/2015/TT-BYT',fontSize:9.5}],margin:[0,40,0,0]}]}
+/* Trang đầu PDF: danh sách Họ tên, năm sinh để đối chiếu */
+function pdfCover(L){const hd=t=>({text:t,bold:true,fillColor:'#e8e8e8',alignment:'center'});
+ return[{text:'DANH SÁCH HỒ SƠ BÁO CÁO TRƯỜNG HỢP BỆNH',alignment:'center',bold:true,fontSize:14,margin:[0,0,0,4]},
+  {text:'Ngày xuất: '+dmy(todayISO())+'   –   Tổng: '+L.length+' hồ sơ',alignment:'center',fontSize:10,margin:[0,0,0,10]},
+  {table:{headerRows:1,widths:[30,'*',70],body:[[hd('STT'),hd('Họ và tên'),hd('Năm sinh')],...L.map((d,k)=>[{text:String(k+1),alignment:'center'},{text:String(d.hoten||'').toUpperCase(),bold:true},{text:String(d.ngaysinh||'').slice(0,4),alignment:'center'}])]},
+   layout:{hLineWidth:()=>.6,vLineWidth:()=>.6,hLineColor:()=>'#000',vLineColor:()=>'#000',paddingTop:()=>4,paddingBottom:()=>4}}]}
 async function batchPdf(){const L=selRecs();if(!L.length)return;
  if(typeof pdfMake==='undefined'){msg('Chưa tải được thư viện PDF, kiểm tra mạng.',1);return}
  const b=$('bf');b.disabled=true;
- try{const buf=await new Promise((ok,no)=>{try{pdfMake.createPdf({pageSize:'A4',pageMargins:[40,40,40,40],defaultStyle:{fontSize:10.5},content:L.flatMap(pdfPages),footer:(c,n)=>({text:c+'/'+n,alignment:'center',fontSize:8})}).getBuffer(ok)}catch(e){no(e)}});
+ try{const buf=await new Promise((ok,no)=>{try{pdfMake.createPdf({pageSize:'A4',pageMargins:[76,35,85,35],defaultStyle:{fontSize:10,lineHeight:1.05},content:[...pdfCover(L),...L.flatMap(pdfPages)]}).getBuffer(ok)}catch(e){no(e)}});
   await saveFile(L.length===1?wordName(L[0]).replace(/\.docx$/,'.pdf'):'BaoCao_'+L.length+'_ho_so.pdf',buf,'application/pdf');
-  msg('Đã xuất file PDF gồm '+L.length+' hồ sơ (mỗi hồ sơ một trang).')}
+  msg('Đã xuất file PDF: trang đầu là danh sách đối chiếu, sau đó '+L.length+' hồ sơ (mỗi hồ sơ 2 trang theo form in).')}
  catch(e){msg('Không tạo được file PDF: '+(e.message||e),1)}
  finally{b.disabled=!sel.size}}
 function batchPage(d,i,a){return'<section class="pg"><h2>BÁO CÁO TRƯỜNG HỢP BỆNH</h2><table>'+fields(d).map(([k,v])=>k==='#'?`<tr class="sc"><td colspan="2">${esc(v)}</td></tr>`:k==='*'?`<tr><td colspan="2" class="v">${esc(v)}</td></tr>`:`<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join('')+
