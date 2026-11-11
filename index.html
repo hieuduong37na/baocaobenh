@@ -907,7 +907,11 @@ function listOpen(id){$('lst').close();openRec(id)}
 function listPrint(id){$('lst').close();document.body.classList.remove('batch');openRec(id);setTimeout(()=>{growAll();window.print()},300)}
 const DK='bctb_defaults_v1',DF=['nguoibc','sdtbc','donvi','email','tinh','noinhan'];
 function applyDefaults(){let o={};try{o=JSON.parse(localStorage.getItem(DK)||'{}')}catch(e){}
- DF.forEach(k=>{const e=F.elements[k];if(e&&!e.value)e.value=o[k]||''});growAll()}
+ DF.forEach(k=>{const e=F.elements[k];if(e&&!e.value)e.value=o[k]||''});
+ /* Mặc định hồ sơ mới: Loại xét nghiệm = Khác: Đàm AFB; Kết quả = Dương tính */
+ const xs=[...F.elements.xn];if(!xs.some(e=>e.checked)){const k=xs.find(e=>e.value==='Khác');if(k)k.checked=true;if(!F.elements.xnkhac.value)F.elements.xnkhac.value='Đàm AFB'}
+ if(!F.elements.ketqua.value)F.elements.ketqua.value='Dương tính';
+ growAll()}
 function rememberDefaults(d){const o={};DF.forEach(k=>o[k]=d[k]||'');try{localStorage.setItem(DK,JSON.stringify(o))}catch(e){}}
 function newForm(){F.reset();cur=null;applyDefaults();render();scrollTo(0,0)}
 /* ---- Nhân bản hồ sơ: giữ nội dung, xóa họ tên, mã, ngày sinh, điện thoại ---- */
