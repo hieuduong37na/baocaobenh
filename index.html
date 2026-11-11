@@ -221,7 +221,7 @@ p.sm{margin:4px 0 0}
 <dialog id="lst" style="max-width:min(780px,96vw);width:96vw"><h3>Danh sách hồ sơ đã nhập</h3>
 <div style="display:flex;gap:6px;flex-wrap:wrap"><input type="text" id="lq" placeholder="Tìm theo họ tên, mã bệnh nhân, bệnh…" oninput="renderList()" style="flex:1 1 220px;width:auto"><select id="ld" onchange="renderList()" aria-label="Lọc theo ngày nhập"><option value="">Tất cả ngày nhập</option></select><select id="lg" onchange="renderList()" aria-label="Lọc theo trạng thái gửi"><option value="">Tất cả trạng thái</option><option value="0">Chưa gửi</option><option value="1">Đã gửi</option></select></div>
 <div class="selbar"><span class="sm">Đã chọn <b id="sc">0</b> hồ sơ</span>
-<button class="alt" id="bs" onclick="batchSend()">✉ Gửi đã chọn</button><button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button><button class="alt" id="bf" onclick="batchPdf()">⬇ PDF đã chọn</button></div>
+<button class="alt" id="bs" onclick="batchSend()">✉ Gửi đã chọn</button><button class="alt" id="bp" onclick="batchPrint()">🖨 In đã chọn</button><button class="alt" id="bx" onclick="batchXls()">⬇ Excel đã chọn</button><button class="alt" id="bw" onclick="batchWord()">⬇ Word đã chọn</button><button class="alt" id="bf" onclick="batchPdf()">⬇ PDF đã chọn</button><button class="alt" id="bz" onclick="batchPdfEach()" title="Mỗi hồ sơ một file PDF: Họ tên_Năm sinh_STT">⬇ PDF từng file</button></div>
 <p class="sm" id="st" style="margin:8px 0 0;font-weight:bold"></p><div style="max-height:56vh;overflow:auto;margin-top:4px"><table id="lt"></table></div>
 <p class="sm" id="lmsg" style="min-height:1.3em;font-weight:bold"></p><p class="sm" id="ln"></p><div style="text-align:right"><button onclick="$('lst').close()">Đóng</button></div></dialog>
 <dialog id="gsd" style="max-width:min(600px,96vw);width:96vw"><h3>Nhập từ Google Sheet</h3>
@@ -754,7 +754,7 @@ async function copyGs(){const t=$('gs');t.focus();t.select();let ok=false;
 function toggleMenu(){$('menu').classList.toggle('open')}
 function closeMenu(){$('menu').classList.remove('open')}
 document.addEventListener('click',e=>{if(!e.target.closest('.btns'))closeMenu()});
-function updSel(){const n=sel.size;$('sc').textContent=n;['bs','bp','bx','bw','bf'].forEach(i=>$(i).disabled=!n);
+function updSel(){const n=sel.size;$('sc').textContent=n;['bs','bp','bx','bw','bf','bz'].forEach(i=>$(i).disabled=!n);
  const a=$('ska');if(a){const k=vis.filter(id=>sel.has(id)).length;a.checked=vis.length>0&&k===vis.length;a.indeterminate=k>0&&k<vis.length}}
 function selTog(id,on){on?sel.add(id):sel.delete(id);updSel()}
 function selAll(on){vis.forEach(id=>on?sel.add(id):sel.delete(id));renderList()}
@@ -825,6 +825,21 @@ async function batchPdf(){const L=selRecs();if(!L.length)return;
   await saveFile(L.length===1?wordName(L[0]).replace(/\.docx$/,'.pdf'):'BaoCao_'+L.length+'_ho_so.pdf',buf,'application/pdf');
   msg('Đã xuất file PDF: trang đầu là danh sách đối chiếu, sau đó '+L.length+' hồ sơ (mỗi hồ sơ 2 trang theo form in).')}
  catch(e){msg('Không tạo được file PDF: '+(e.message||e),1)}
+ finally{b.disabled=!sel.size}}
+/* ---- Xuất PDF từng file lẻ: mỗi hồ sơ một file, tên = Họ tên_Năm sinh_Số TT xuất ---- */
+async function batchPdfEach(){const L=selRecs();if(!L.length)return;
+ if(typeof pdfMake==='undefined'){msg('Chưa tải được thư viện PDF, kiểm tra mạng.',1);return}
+ const b=$('bz');b.disabled=true;const w=Math.max(2,String(L.length).length),used=new Set();let n=0;
+ try{for(let i=0;i<L.length;i++){const r=L[i];
+   msg('Đang tạo PDF '+(i+1)+'/'+L.length+'…');
+   const c=pdfPages(r,0);delete c[0].pageBreak;
+   const buf=await new Promise((ok,no)=>{try{pdfMake.createPdf({pageSize:'A4',pageMargins:[76.5,39.7,79.4,28],defaultStyle:{font:'LS',fontSize:10.9,lineHeight:1.12},content:c},null,{LS:{normal:'r.ttf',bold:'b.ttf',italics:'i.ttf',bolditalics:'bi.ttf'}},{'r.ttf':LSF.r,'b.ttf':LSF.b,'i.ttf':LSF.i,'bi.ttf':LSF.bi}).getBuffer(ok)}catch(e){no(e)}});
+   const ten=T(r.hoten).replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()||'HoSo',ns=(/(\d{4})/.exec(r.ngaysinh||'')||[])[1],
+    nm=ten+(ns?'_'+ns:'')+'_'+String(i+1).padStart(w,'0')+'.pdf';
+   await saveFile(nm,buf,'application/pdf');n++;
+   if(i<L.length-1)await new Promise(f=>setTimeout(f,400))}
+  msg('Đã xuất '+n+' file PDF riêng (tên: Họ tên_Năm sinh_STT). Nếu trình duyệt hỏi cho phép tải nhiều file, hãy chọn Cho phép.')}
+ catch(e){msg('Đã xuất '+n+'/'+L.length+' file; dừng vì lỗi: '+(e.message||e),1)}
  finally{b.disabled=!sel.size}}
 /* Xuất PDF hồ sơ đang mở (đúng form in 2 trang A4, phông Times New Roman nhúng sẵn) */
 async function curPdf(){
