@@ -911,6 +911,8 @@ function applyDefaults(){let o={};try{o=JSON.parse(localStorage.getItem(DK)||'{}
  /* Mặc định hồ sơ mới: Loại xét nghiệm = Khác: Đàm AFB; Kết quả = Dương tính */
  const xs=[...F.elements.xn];if(!xs.some(e=>e.checked)){const k=xs.find(e=>e.value==='Khác');if(k)k.checked=true;if(!F.elements.xnkhac.value)F.elements.xnkhac.value='Đàm AFB'}
  if(!F.elements.ketqua.value)F.elements.ketqua.value='Dương tính';
+ /* Mặc định: chẩn đoán bệnh = 24. Lao phổi */
+ const bs=[...F.elements.benh];if(!bs.some(e=>e.checked)){const k=bs.find(e=>e.value==='24. Lao phổi');if(k)k.checked=true}
  growAll()}
 function rememberDefaults(d){const o={};DF.forEach(k=>o[k]=d[k]||'');try{localStorage.setItem(DK,JSON.stringify(o))}catch(e){}}
 function newForm(){F.reset();cur=null;applyDefaults();render();scrollTo(0,0)}
